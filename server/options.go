@@ -29,28 +29,28 @@ type Logger struct {
 	size string
 	days uint8
 }
+
 // Options block for nats-server.
 // NOTE: This structure is no longer used for monitoring endpoints
 // and json tags are deprecated and may be removed in the future.
 type Options struct {
-	ConfigFile            string        `json:"-"`
-	ServerName            string        `json:"server_name"`
-	Host                  string        `json:"addr"`
-	Port                  int           `json:"port"`
-	Authorization         authorization        `json:"-"`
-	HTTPSPort             int           `json:"https_port"`
-	AuthTimeout           float64       `json:"auth_timeout"`
-	MaxControlLine        int32         `json:"max_control_line"`
-	MaxPayload            int32         `json:"max_payload"`
-	MaxPending            int64         `json:"max_pending"`
-	LogPath               string        `json:"-"`
-	LogSizeLimit          int64         `json:"-"`
-	TLS                   bool          `json:"-"`
-	TLSConfig             *tls.Config   `json:"-"`
-	AllowNonTLS           bool          `json:"-"`
-	inConfig  map[string]bool
-	inCmdLine map[string]bool
-
+	ConfigFile     string        `json:"-"`
+	ServerName     string        `json:"server_name"`
+	Host           string        `json:"addr"`
+	Port           int           `json:"port"`
+	Authorization  authorization `json:"-"`
+	HTTPSPort      int           `json:"https_port"`
+	AuthTimeout    float64       `json:"auth_timeout"`
+	MaxControlLine int32         `json:"max_control_line"`
+	MaxPayload     int32         `json:"max_payload"`
+	MaxPending     int64         `json:"max_pending"`
+	LogPath        string        `json:"-"`
+	LogSizeLimit   int64         `json:"-"`
+	TLS            bool          `json:"-"`
+	TLSConfig      *tls.Config   `json:"-"`
+	AllowNonTLS    bool          `json:"-"`
+	inConfig       map[string]bool
+	inCmdLine      map[string]bool
 }
 
 type authorization struct {
@@ -72,14 +72,10 @@ type TLSConfigOpts struct {
 	Timeout           float64
 }
 
-
-
-
 func ProcessConfigFile(configFile string) (*Options, error) {
 	opts := &Options{}
 	return opts, nil
 }
-
 
 func (o *Options) processConfigFileLine(k string, v interface{}, errors *[]error, warnings *[]error) {
 	switch strings.ToLower(k) {
@@ -106,11 +102,11 @@ func (o *Options) processConfigFileLine(k string, v interface{}, errors *[]error
 		}
 	}
 }
+
 type hostPort struct {
 	host string
 	port int
 }
-
 
 func parseListen(v interface{}) (*hostPort, error) {
 	hp := &hostPort{}
@@ -137,7 +133,6 @@ func parseListen(v interface{}) (*hostPort, error) {
 func parseURLs(a []interface{}, typ string) (urls []*url.URL, errors []error) {
 	urls = make([]*url.URL, 0, len(a))
 
-
 	for _, u := range a {
 		sURL := u.(string)
 		url, err := parseURL(sURL, typ)
@@ -159,8 +154,6 @@ func parseURL(u string, typ string) (*url.URL, error) {
 	return url, nil
 }
 
-
-
 //将命令行的配置覆盖文件配置
 func MergeOptions(fileOpts, flagOpts *Options) *Options {
 	if fileOpts == nil {
@@ -180,7 +173,6 @@ func MergeOptions(fileOpts, flagOpts *Options) *Options {
 	}
 	return &opts
 }
-
 
 func isIPInList(list1 []net.IP, list2 []net.IP) bool {
 	for _, ip1 := range list1 {
@@ -247,7 +239,7 @@ func ProcessCommandLineArgs(cmd *flag.FlagSet) (showVersion bool, showHelp bool,
 	}
 	return false, false, nil
 }
-func ConfigureOptions(fs *flag.FlagSet, args []string, printVersion, printHelp, printTLSHelp func()) (*Options, error) {
+func ConfigureOptions(fs *flag.FlagSet, args []string, printVersion func()) (*Options, error) {
 	opts := &Options{}
 	var (
 		showVersion            bool
@@ -273,41 +265,22 @@ func ConfigureOptions(fs *flag.FlagSet, args []string, printVersion, printHelp, 
 	fs.BoolVar(&trcAndVerboseTrc, "VV", false, "Enable Verbose Trace logging. (Traces system account as well)")
 	fs.BoolVar(&dbgAndTrace, "DV", false, "Enable Debug and Trace logging.")
 	fs.BoolVar(&dbgAndTrcAndVerboseTrc, "DVV", false, "Enable Debug and Verbose Trace logging. (Traces system account as well)")
-	fs.StringVar(&opts.Authorization, "auth", "", "Authorization token required for connection.")
 	fs.IntVar(&opts.HTTPPort, "m", 0, "HTTP Port for /varz, /connz endpoints.")
 	fs.IntVar(&opts.HTTPPort, "http_port", 0, "HTTP Port for /varz, /connz endpoints.")
 	fs.IntVar(&opts.HTTPSPort, "ms", 0, "HTTPS Port for /varz, /connz endpoints.")
 	fs.IntVar(&opts.HTTPSPort, "https_port", 0, "HTTPS Port for /varz, /connz endpoints.")
 	fs.StringVar(&configFile, "c", "", "Configuration file.")
 	fs.StringVar(&configFile, "config", "", "Configuration file.")
-	fs.BoolVar(&opts.CheckConfig, "t", false, "Check configuration and exit.")
 	fs.StringVar(&signal, "sl", "", "Send signal to nats-server process (stop, quit, reopen, reload).")
 	fs.StringVar(&signal, "signal", "", "Send signal to nats-server process (stop, quit, reopen, reload).")
-	fs.StringVar(&opts.PidFile, "P", "", "File to store process pid.")
-	fs.StringVar(&opts.PidFile, "pid", "", "File to store process pid.")
-	fs.StringVar(&opts.PortsFileDir, "ports_file_dir", "", "Creates a ports file in the specified directory (<executable_name>_<pid>.ports).")
-	fs.StringVar(&opts.LogFile, "l", "", "File to store logging output.")
-	fs.StringVar(&opts.LogFile, "log", "", "File to store logging output.")
+
 	fs.Int64Var(&opts.LogSizeLimit, "log_size_limit", 0, "Logfile size limit being auto-rotated")
-	fs.BoolVar(&opts.Syslog, "s", false, "Enable syslog as log method.")
-	fs.BoolVar(&opts.Syslog, "syslog", false, "Enable syslog as log method.")
-	fs.StringVar(&opts.RemoteSyslog, "r", "", "Syslog server addr (udp://127.0.0.1:514).")
-	fs.StringVar(&opts.RemoteSyslog, "remote_syslog", "", "Syslog server addr (udp://127.0.0.1:514).")
+
 	fs.BoolVar(&showVersion, "version", false, "Print version information.")
 	fs.BoolVar(&showVersion, "v", false, "Print version information.")
-	fs.IntVar(&opts.ProfPort, "profile", 0, "Profiling HTTP port.")
-	fs.StringVar(&opts.RoutesStr, "routes", "", "Routes to actively solicit a connection.")
+
 	fs.BoolVar(&showTLSHelp, "help_tls", false, "TLS help.")
-	fs.BoolVar(&opts.TLS, "tls", false, "Enable TLS.")
-	fs.BoolVar(&opts.TLSVerify, "tlsverify", false, "Enable TLS with client verification.")
-	fs.StringVar(&opts.TLSCert, "tlscert", "", "Server certificate file.")
-	fs.StringVar(&opts.TLSKey, "tlskey", "", "Private key for server certificate.")
-	fs.StringVar(&opts.TLSCaCert, "tlscacert", "", "Client certificate CA for verification.")
-	fs.IntVar(&opts.MaxTracedMsgLen, "max_traced_msg_len", 0, "Maximum printable length for traced messages. 0 for unlimited.")
-	fs.BoolVar(&opts.JetStream, "js", false, "Enable JetStream.")
-	fs.BoolVar(&opts.JetStream, "jetstream", false, "Enable JetStream.")
-	fs.StringVar(&opts.StoreDir, "sd", "", "Storage directory.")
-	fs.StringVar(&opts.StoreDir, "store_dir", "", "Storage directory.")
+
 	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}
@@ -315,14 +288,7 @@ func ConfigureOptions(fs *flag.FlagSet, args []string, printVersion, printHelp, 
 		printVersion()
 		return nil, nil
 	}
-	if showHelp {
-		printHelp()
-		return nil, nil
-	}
-	if showTLSHelp {
-		printTLSHelp()
-		return nil, nil
-	}
+
 	// Process args looking for non-flag options,
 	// 'version' and 'help' only for now
 	showVersion, showHelp, err = ProcessCommandLineArgs(fs)
@@ -330,9 +296,6 @@ func ConfigureOptions(fs *flag.FlagSet, args []string, printVersion, printHelp, 
 		return nil, err
 	} else if showVersion {
 		printVersion()
-		return nil, nil
-	} else if showHelp {
-		printHelp()
 		return nil, nil
 	}
 
@@ -348,17 +311,8 @@ func ConfigureOptions(fs *flag.FlagSet, args []string, printVersion, printHelp, 
 		// This will update the options with values from the config file.
 		err := opts.ProcessConfigFile(configFile)
 		if err != nil {
-			if opts.CheckConfig {
-				return nil, err
-			}
-			if cerr, ok := err.(*processConfigErr); !ok || len(cerr.Errors()) != 0 {
-				return nil, err
-			}
-			// If we get here we only have warnings and can still continue
+
 			fmt.Fprint(os.Stderr, err)
-		} else if opts.CheckConfig {
-			// Report configuration file syntax test was successful and exit.
-			return opts, nil
 		}
 
 		// Call this again to override config file options with options from command line.
@@ -366,8 +320,6 @@ func ConfigureOptions(fs *flag.FlagSet, args []string, printVersion, printHelp, 
 		// have been caught the first time this function was called (after setting up the
 		// flags).
 		fs.Parse(args)
-	} else if opts.CheckConfig {
-		return nil, fmt.Errorf("must specify [-c, --config] option to check configuration file syntax")
 	}
 
 	// Special handling of some flags
@@ -397,20 +349,13 @@ func ConfigureOptions(fs *flag.FlagSet, args []string, printVersion, printHelp, 
 		} else {
 			switch f.Name {
 
-
 			}
 		}
 	})
 	if flagErr != nil {
 		return nil, flagErr
 	}
-	// This will be true if some of the `-tls` params have been set and
-	// `-tls=false` has not been set.
-	if tlsOverride {
-		if err := overrideTLS(opts); err != nil {
-			return nil, err
-		}
-	}
+
 	return opts, nil
 }
 
@@ -424,12 +369,6 @@ func normalizeBasePath(p string) string {
 	}
 	return path.Clean(p)
 }
-
-
-
-// overrideCluster updates Options.Cluster if that flag "cluster" (or "cluster_listen")
-// has explicitly be set in the command line. If it is set to empty string, it will
-// clear the Cluster options.
 
 func ProcessSignal(command Command, pidStr string) error {
 	var pid int
@@ -543,4 +482,3 @@ func expandPath(p string) (string, error) {
 
 	return filepath.Join(home, p[1:]), nil
 }
-

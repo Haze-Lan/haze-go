@@ -8,10 +8,12 @@ import (
 	"testing"
 	"time"
 )
+
 const (
 	address     = "localhost:50051"
 	defaultName = "world"
 )
+
 func Test(t *testing.T) {
 	// Set up a connection to the server.
 	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
@@ -32,4 +34,3 @@ func Test(t *testing.T) {
 	log.Printf("Greeting: %s", r.GetMessage())
 
 }
-

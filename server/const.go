@@ -16,14 +16,14 @@ const (
 )
 
 var (
-	gitCommit string
+	gitCommit   string
 	trustedKeys string
 )
 
 const (
-	VERSION = "1.0.0"
-	PROTO = 1
+	VERSION      = "1.0.0"
+	PROTO        = 1
 	DEFAULT_PORT = 4222
-	RANDOM_PORT = -1
+	RANDOM_PORT  = -1
 	DEFAULT_HOST = "0.0.0.0"
 )

@@ -7,15 +7,11 @@ import (
 	"google.golang.org/grpc"
 	"log"
 	"net"
-
 )
 
-
-
-
 func main() {
-	haze:=  server.Init()
-	if err:=  haze.Run();err!=nil{
+	haze := server.Init()
+	if err := haze.Run(); err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	lis, err := net.Listen("tcp", ":50051")
@@ -39,5 +35,3 @@ func (s *server) SayHello(ctx context.Context, in *api.HelloRequest) (*api.Hello
 	log.Printf("Received: %v", in.GetName())
 	return &api.HelloReply{Message: "Hello " + in.GetName()}, nil
 }
-
-

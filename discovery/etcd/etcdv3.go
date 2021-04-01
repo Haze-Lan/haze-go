@@ -29,8 +29,6 @@ type EtcdV3 struct {
 	ttl int64
 }
 
-
-
 // New creates a new Etcd client given a list
 // of endpoints and an optional tls config
 func New(addrs []string, options *store.Config) (store.Store, error) {
@@ -447,6 +445,3 @@ func (s *EtcdV3) Close() {
 	close(s.done)
 	s.client.Close()
 }
-
-
-

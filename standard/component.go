@@ -1,4 +1,5 @@
 package standard
+
 //组件标准 TODO 后续使用
 type Component interface {
 	//初始化

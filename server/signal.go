@@ -30,16 +30,16 @@ func (s *Server) handleSignals() {
 				//s.log	s.Debugf("Trapped %q signal", sig)
 				switch sig {
 				case syscall.SIGINT:
-				//	s.Shutdown()
+					//	s.Shutdown()
 					os.Exit(0)
 				case syscall.SIGTERM:
 					// Shutdown unless graceful shutdown already in progress.
-				//	s.mu.Lock()
+					//	s.mu.Lock()
 					//ldm := s.ldm
-				//	s.mu.Unlock()
+					//	s.mu.Unlock()
 
 					if !ldm {
-				//		s.Shutdown()
+						//		s.Shutdown()
 						os.Exit(0)
 					}
 				case syscall.SIGUSR1:
@@ -49,9 +49,9 @@ func (s *Server) handleSignals() {
 				//	go s.lameDuckMode()
 				case syscall.SIGHUP:
 					// Config reload.
-				//	if err := s.Reload(); err != nil {
-				//		s.Errorf("Failed to reload server configuration: %s", err)
-				//	}
+					//	if err := s.Reload(); err != nil {
+					//		s.Errorf("Failed to reload server configuration: %s", err)
+					//	}
 				}
 			case <-s.quitCh:
 				return

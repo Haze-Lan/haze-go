@@ -1,4 +1,5 @@
 package discovery
+
 //微服务实体类
 type Service struct {
 	//服务名称
