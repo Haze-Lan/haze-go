@@ -1,8 +1,11 @@
+//+build !windows
+
 package server
 
 import (
 	"errors"
 	"fmt"
+	"github.com/Haze-Lan/haze-go"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -64,7 +67,7 @@ func (s *Server) handleSignals() {
 // is empty, this will send the signal to the single running instance of
 // nats-server. If multiple instances are running, it returns an error. This returns
 // an error if the given process is not running or the command is invalid.
-func ProcessSignal(command Command, pidStr string) error {
+func ProcessSignal(command main.Command, pidStr string) error {
 	var pid int
 	if pidStr == "" {
 		pids, err := resolvePids()
@@ -94,17 +97,17 @@ func ProcessSignal(command Command, pidStr string) error {
 
 	var err error
 	switch command {
-	case CommandStop:
+	case main.CommandStop:
 		err = kill(pid, syscall.SIGKILL)
-	case CommandQuit:
+	case main.CommandQuit:
 		err = kill(pid, syscall.SIGINT)
-	case CommandReopen:
+	case main.CommandReopen:
 		err = kill(pid, syscall.SIGUSR1)
-	case CommandReload:
+	case main.CommandReload:
 		err = kill(pid, syscall.SIGHUP)
-	case commandLDMode:
+	case main.commandLDMode:
 		err = kill(pid, syscall.SIGUSR2)
-	case commandTerm:
+	case main.commandTerm:
 		err = kill(pid, syscall.SIGTERM)
 	default:
 		err = fmt.Errorf("unknown signal %q", command)

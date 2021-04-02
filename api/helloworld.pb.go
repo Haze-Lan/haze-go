@@ -5,7 +5,7 @@
 // source: helloworld.proto
 
 package api
- 
+
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"

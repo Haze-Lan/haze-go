@@ -1,34 +1,28 @@
 package server
 
 import (
-	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Haze-Lan/haze-go"
 	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
-	"time"
 )
 
 var allowUnknownTopLevelField = int32(0)
 
-type Logger struct {
-	path string
-	size string
-	days uint8
-}
+
 
 // Options block for nats-server.
 // NOTE: This structure is no longer used for monitoring endpoints
@@ -51,7 +45,23 @@ type Options struct {
 	AllowNonTLS    bool          `json:"-"`
 	inConfig       map[string]bool
 	inCmdLine      map[string]bool
+	logger		  logger
 }
+
+//日志配置
+type logger struct {
+	//日志输出通道 FILE CONSOLE REMOTE
+	channels  []string
+	//文件日志分割周期
+	limit    int64
+	//日志分割大小
+	limitSize int64
+	sync.Mutex
+	//日志级别
+	level Level
+}
+
+
 
 type authorization struct {
 	user  string
@@ -370,7 +380,7 @@ func normalizeBasePath(p string) string {
 	return path.Clean(p)
 }
 
-func ProcessSignal(command Command, pidStr string) error {
+func ProcessSignal(command main.Command, pidStr string) error {
 	var pid int
 	if pidStr == "" {
 		pids, err := resolvePids()
@@ -400,17 +410,17 @@ func ProcessSignal(command Command, pidStr string) error {
 
 	var err error
 	switch command {
-	case CommandStop:
+	case main.CommandStop:
 		err = kill(pid, syscall.SIGKILL)
-	case CommandQuit:
+	case main.CommandQuit:
 		err = kill(pid, syscall.SIGINT)
-	case CommandReopen:
+	case main.CommandReopen:
 		err = kill(pid, syscall.SIGUSR1)
-	case CommandReload:
+	case main.CommandReload:
 		err = kill(pid, syscall.SIGHUP)
-	case commandLDMode:
+	case main.commandLDMode:
 		err = kill(pid, syscall.SIGUSR2)
-	case commandTerm:
+	case main.commandTerm:
 		err = kill(pid, syscall.SIGTERM)
 	default:
 		err = fmt.Errorf("unknown signal %q", command)
@@ -427,7 +437,7 @@ func processSignal(signal string) error {
 	} else if l > 2 {
 		return fmt.Errorf("invalid signal parameters: %v", commandAndPid[2:])
 	}
-	if err := ProcessSignal(Command(commandAndPid[0]), pid); err != nil {
+	if err := ProcessSignal(main.Command(commandAndPid[0]), pid); err != nil {
 		return err
 	}
 	os.Exit(0)
