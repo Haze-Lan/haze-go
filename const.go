@@ -21,12 +21,11 @@ var (
 )
 
 const (
-
-	SERVICE_VERSION      = "1.0.0"
-	SERVICE_NAME= "haze-framework"
-	SERVICE_TAG= SERVICE_NAME +"-"+ SERVICE_VERSION
-	PROTO        = 1
-	DEFAULT_PORT = 4222
-	RANDOM_PORT  = -1
-	DEFAULT_HOST = "0.0.0.0"
+	SERVICE_VERSION = "1.0.0"
+	SERVICE_NAME    = "haze-framework"
+	SERVICE_TAG     = SERVICE_NAME + "-" + SERVICE_VERSION
+	PROTO           = 1
+	DEFAULT_PORT    = 4222
+	RANDOM_PORT     = -1
+	DEFAULT_HOST    = "0.0.0.0"
 )

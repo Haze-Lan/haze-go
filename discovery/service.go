@@ -2,6 +2,7 @@ package discovery
 
 //微服务实体类
 type Service struct {
+	ip string
 	//服务名称
 	name string
 	//服务唯一标识

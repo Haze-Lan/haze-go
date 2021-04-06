@@ -80,11 +80,9 @@ func (l Level) CapitalString() string {
 	}
 }
 
-
 func (l Level) MarshalText() ([]byte, error) {
 	return []byte(l.String()), nil
 }
-
 
 func (l *Level) UnmarshalText(text []byte) error {
 	if l == nil {
@@ -133,8 +131,6 @@ func (l Level) Enabled(lvl Level) bool {
 	return lvl >= l
 }
 
-
 type LevelEnabler interface {
 	Enabled(Level) bool
 }
-

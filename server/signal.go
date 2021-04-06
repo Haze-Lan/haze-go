@@ -1,11 +1,11 @@
 //+build !windows
 
+//用于处理信号
 package server
 
 import (
 	"errors"
 	"fmt"
-	"github.com/Haze-Lan/haze-go"
 	"os"
 	"os/exec"
 	"os/signal"

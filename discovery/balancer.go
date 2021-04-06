@@ -1,5 +1,5 @@
 package discovery
 
-//均衡器
+//负载均衡器
 type Balancer struct {
 }

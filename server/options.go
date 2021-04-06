@@ -1,11 +1,12 @@
 package server
 
 import (
-	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/Haze-Lan/haze-go"
+	"github.com/Haze-Lan/haze-go/discovery"
+	"github.com/Haze-Lan/haze-go/logger"
+	_ "github.com/Haze-Lan/haze-go/logger"
 	"io/ioutil"
 	"net"
 	"net/url"
@@ -16,70 +17,35 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
-	"syscall"
 )
 
 var allowUnknownTopLevelField = int32(0)
-
-
 
 // Options block for nats-server.
 // NOTE: This structure is no longer used for monitoring endpoints
 // and json tags are deprecated and may be removed in the future.
 type Options struct {
-	ConfigFile     string        `json:"-"`
-	ServerName     string        `json:"server_name"`
-	Host           string        `json:"addr"`
-	Port           int           `json:"port"`
-	Authorization  authorization `json:"-"`
-	HTTPSPort      int           `json:"https_port"`
-	AuthTimeout    float64       `json:"auth_timeout"`
-	MaxControlLine int32         `json:"max_control_line"`
-	MaxPayload     int32         `json:"max_payload"`
-	MaxPending     int64         `json:"max_pending"`
-	LogPath        string        `json:"-"`
-	LogSizeLimit   int64         `json:"-"`
-	TLS            bool          `json:"-"`
-	TLSConfig      *tls.Config   `json:"-"`
-	AllowNonTLS    bool          `json:"-"`
-	inConfig       map[string]bool
-	inCmdLine      map[string]bool
-	logger		  logger
+	ConfigFile   string `json:"-"`
+	ServerName   string `json:"server_name"`
+	Host         string `json:"addr"`
+	Port         int    `json:"port"`
+	LogPath      string `json:"-"`
+	LogSizeLimit int64  `json:"-"`
+	logger       loggerOptions
+	discovery    *discovery.DiscoveryOption
 }
 
 //日志配置
-type logger struct {
+type loggerOptions struct {
 	//日志输出通道 FILE CONSOLE REMOTE
-	channels  []string
+	channels []string
 	//文件日志分割周期
-	limit    int64
+	limit int64
 	//日志分割大小
 	limitSize int64
 	sync.Mutex
 	//日志级别
-	level Level
-}
-
-
-
-type authorization struct {
-	user  string
-	pass  string
-	token string
-}
-
-// TLSConfigOpts holds the parsed tls config information,
-// used with flag parsing
-type TLSConfigOpts struct {
-	CertFile          string
-	KeyFile           string
-	CaFile            string
-	Verify            bool
-	Insecure          bool
-	Map               bool
-	TLSCheckKnownURLs bool
-	Timeout           float64
+	level logger.Level
 }
 
 func ProcessConfigFile(configFile string) (*Options, error) {
@@ -107,9 +73,7 @@ func (o *Options) processConfigFileLine(k string, v interface{}, errors *[]error
 		o.Host = v.(string)
 
 	default:
-		if au := atomic.LoadInt32(&allowUnknownTopLevelField); au == 0 && !tk.IsUsedVariable() {
 
-		}
 	}
 }
 
@@ -275,10 +239,6 @@ func ConfigureOptions(fs *flag.FlagSet, args []string, printVersion func()) (*Op
 	fs.BoolVar(&trcAndVerboseTrc, "VV", false, "Enable Verbose Trace logging. (Traces system account as well)")
 	fs.BoolVar(&dbgAndTrace, "DV", false, "Enable Debug and Trace logging.")
 	fs.BoolVar(&dbgAndTrcAndVerboseTrc, "DVV", false, "Enable Debug and Verbose Trace logging. (Traces system account as well)")
-	fs.IntVar(&opts.HTTPPort, "m", 0, "HTTP Port for /varz, /connz endpoints.")
-	fs.IntVar(&opts.HTTPPort, "http_port", 0, "HTTP Port for /varz, /connz endpoints.")
-	fs.IntVar(&opts.HTTPSPort, "ms", 0, "HTTPS Port for /varz, /connz endpoints.")
-	fs.IntVar(&opts.HTTPSPort, "https_port", 0, "HTTPS Port for /varz, /connz endpoints.")
 	fs.StringVar(&configFile, "c", "", "Configuration file.")
 	fs.StringVar(&configFile, "config", "", "Configuration file.")
 	fs.StringVar(&signal, "sl", "", "Send signal to nats-server process (stop, quit, reopen, reload).")
@@ -311,32 +271,11 @@ func ConfigureOptions(fs *flag.FlagSet, args []string, printVersion func()) (*Op
 
 	// Process signal control.
 	if signal != "" {
-		if err := processSignal(signal); err != nil {
-			return nil, err
-		}
+
 	}
-
-	// Parse config if given
-	if configFile != "" {
-		// This will update the options with values from the config file.
-		err := opts.ProcessConfigFile(configFile)
-		if err != nil {
-
-			fmt.Fprint(os.Stderr, err)
-		}
-
-		// Call this again to override config file options with options from command line.
-		// Note: We don't need to check error here since if there was an error, it would
-		// have been caught the first time this function was called (after setting up the
-		// flags).
-		fs.Parse(args)
-	}
-
 	// Special handling of some flags
 	var (
-		flagErr     error
-		tlsDisabled bool
-		tlsOverride bool
+		flagErr error
 	)
 	fs.Visit(func(f *flag.Flag) {
 		// short-circuit if an error was encountered
@@ -344,23 +283,8 @@ func ConfigureOptions(fs *flag.FlagSet, args []string, printVersion func()) (*Op
 			return
 		}
 		if strings.HasPrefix(f.Name, "tls") {
-			if f.Name == "tls" {
-				if !opts.TLS {
-					// User has specified "-tls=false", we need to disable TLS
-					opts.TLSConfig = nil
-					tlsDisabled = true
-					tlsOverride = false
-					return
-				}
-				tlsOverride = true
-			} else if !tlsDisabled {
-				tlsOverride = true
-			}
-		} else {
-			switch f.Name {
-
-			}
 		}
+
 	})
 	if flagErr != nil {
 		return nil, flagErr
@@ -378,70 +302,6 @@ func normalizeBasePath(p string) string {
 		p = "/" + p
 	}
 	return path.Clean(p)
-}
-
-func ProcessSignal(command main.Command, pidStr string) error {
-	var pid int
-	if pidStr == "" {
-		pids, err := resolvePids()
-		if err != nil {
-			return err
-		}
-		if len(pids) == 0 {
-			return fmt.Errorf("no %s processes running", processName)
-		}
-		if len(pids) > 1 {
-			errStr := fmt.Sprintf("multiple %s processes running:\n", processName)
-			prefix := ""
-			for _, p := range pids {
-				errStr += fmt.Sprintf("%s%d", prefix, p)
-				prefix = "\n"
-			}
-			return errors.New(errStr)
-		}
-		pid = pids[0]
-	} else {
-		p, err := strconv.Atoi(pidStr)
-		if err != nil {
-			return fmt.Errorf("invalid pid: %s", pidStr)
-		}
-		pid = p
-	}
-
-	var err error
-	switch command {
-	case main.CommandStop:
-		err = kill(pid, syscall.SIGKILL)
-	case main.CommandQuit:
-		err = kill(pid, syscall.SIGINT)
-	case main.CommandReopen:
-		err = kill(pid, syscall.SIGUSR1)
-	case main.CommandReload:
-		err = kill(pid, syscall.SIGHUP)
-	case main.commandLDMode:
-		err = kill(pid, syscall.SIGUSR2)
-	case main.commandTerm:
-		err = kill(pid, syscall.SIGTERM)
-	default:
-		err = fmt.Errorf("unknown signal %q", command)
-	}
-	return err
-}
-func processSignal(signal string) error {
-	var (
-		pid           string
-		commandAndPid = strings.Split(signal, "=")
-	)
-	if l := len(commandAndPid); l == 2 {
-		pid = maybeReadPidFile(commandAndPid[1])
-	} else if l > 2 {
-		return fmt.Errorf("invalid signal parameters: %v", commandAndPid[2:])
-	}
-	if err := ProcessSignal(main.Command(commandAndPid[0]), pid); err != nil {
-		return err
-	}
-	os.Exit(0)
-	return nil
 }
 
 // maybeReadPidFile returns a PID or Windows service name obtained via the following method:

@@ -7,8 +7,8 @@ import (
 )
 
 func main() {
-	haze := server.Init()
-	if err := server.Run(haze); err != nil {
+	haze := server.NewServer()
+	if err := haze.Start(); err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 }
