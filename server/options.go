@@ -1,354 +1,68 @@
 package server
 
 import (
-	"errors"
 	"flag"
-	"fmt"
-	"github.com/Haze-Lan/haze-go/discovery"
-	"github.com/Haze-Lan/haze-go/logger"
-	_ "github.com/Haze-Lan/haze-go/logger"
+	"github.com/Haze-Lan/haze-go/utils"
+	"github.com/go-yaml/yaml"
 	"io/ioutil"
-	"net"
-	"net/url"
-	"os"
-	"path"
-	"path/filepath"
-	"runtime"
+	"reflect"
 	"strconv"
-	"strings"
-	"sync"
 )
 
-var allowUnknownTopLevelField = int32(0)
+var defaultServerOptions = serverOptions{}
 
-// Options block for nats-server.
-// NOTE: This structure is no longer used for monitoring endpoints
-// and json tags are deprecated and may be removed in the future.
-type Options struct {
-	ConfigFile   string `json:"-"`
-	ServerName   string `json:"server_name"`
-	Host         string `json:"addr"`
-	Port         int    `json:"port"`
-	LogPath      string `json:"-"`
-	LogSizeLimit int64  `json:"-"`
-	logger       loggerOptions
-	discovery    *discovery.DiscoveryOption
-}
-
-//日志配置
-type loggerOptions struct {
-	//日志输出通道 FILE CONSOLE REMOTE
-	channels []string
-	//文件日志分割周期
-	limit int64
-	//日志分割大小
-	limitSize int64
-	sync.Mutex
-	//日志级别
-	level logger.Level
-}
-
-func ProcessConfigFile(configFile string) (*Options, error) {
-	opts := &Options{}
-	return opts, nil
-}
-
-func (o *Options) processConfigFileLine(k string, v interface{}, errors *[]error, warnings *[]error) {
-	switch strings.ToLower(k) {
-	case "listen":
-		hp, err := parseListen(v)
-		if err != nil {
-
-			return
-		}
-		o.Host = hp.host
-		o.Port = hp.port
-	case "client_advertise":
-
-	case "port":
-		o.Port = int(v.(int64))
-	case "server_name":
-		o.ServerName = v.(string)
-	case "host", "net":
-		o.Host = v.(string)
-
-	default:
-
-	}
-}
-
-type hostPort struct {
-	host string
-	port int
-}
-
-func parseListen(v interface{}) (*hostPort, error) {
-	hp := &hostPort{}
-	switch vv := v.(type) {
-	// Only a port
-	case int64:
-		hp.port = int(vv)
-	case string:
-		host, port, err := net.SplitHostPort(vv)
-		if err != nil {
-			return nil, fmt.Errorf("could not parse address string %q", vv)
-		}
-		hp.port, err = strconv.Atoi(port)
-		if err != nil {
-			return nil, fmt.Errorf("could not parse port %q", port)
-		}
-		hp.host = host
-	default:
-		return nil, fmt.Errorf("expected port or host:port, got %T", vv)
-	}
-	return hp, nil
-}
-
-func parseURLs(a []interface{}, typ string) (urls []*url.URL, errors []error) {
-	urls = make([]*url.URL, 0, len(a))
-
-	for _, u := range a {
-		sURL := u.(string)
-		url, err := parseURL(sURL, typ)
-		if err != nil {
-			errors = append(errors, err)
-			continue
-		}
-		urls = append(urls, url)
-	}
-	return urls, errors
-}
-
-func parseURL(u string, typ string) (*url.URL, error) {
-	urlStr := strings.TrimSpace(u)
-	url, err := url.Parse(urlStr)
+func init() {
+	var configPath string
+	base, _ := utils.HomeDir()
+	flag.StringVar(&configPath, "config", base+"\\application.yaml", "config file path")
+	flag.Parse()
+	log.Infoln("加载配置文件：", configPath)
+	m := make(map[string]interface{})
+	data, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing %s url [%q]", typ, urlStr)
+		log.Fatalln("配置文件读取错误: ", err.Error())
 	}
-	return url, nil
-}
-
-//将命令行的配置覆盖文件配置
-func MergeOptions(fileOpts, flagOpts *Options) *Options {
-	if fileOpts == nil {
-		return flagOpts
-	}
-	if flagOpts == nil {
-		return fileOpts
-	}
-	// Merge the two, flagOpts override
-	opts := *fileOpts
-
-	if flagOpts.Port != 0 {
-		opts.Port = flagOpts.Port
-	}
-	if flagOpts.Host != "" {
-		opts.Host = flagOpts.Host
-	}
-	return &opts
-}
-
-func isIPInList(list1 []net.IP, list2 []net.IP) bool {
-	for _, ip1 := range list1 {
-		for _, ip2 := range list2 {
-			if ip1.Equal(ip2) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func getURLIP(ipStr string) ([]net.IP, error) {
-	ipList := []net.IP{}
-
-	ip := net.ParseIP(ipStr)
-	if ip != nil {
-		ipList = append(ipList, ip)
-		return ipList, nil
-	}
-
-	hostAddr, err := net.LookupHost(ipStr)
+	err = yaml.Unmarshal(data, &m)
 	if err != nil {
-		return nil, fmt.Errorf("Error looking up host with route hostname: %v", err)
+		log.Fatalln("error: ", err)
 	}
-	for _, addr := range hostAddr {
-		ip = net.ParseIP(addr)
-		if ip != nil {
-			ipList = append(ipList, ip)
+	for k, v := range m["application"].((map[interface{}]interface{})) {
+		fv := reflect.ValueOf("With" + k.(string))
+		if fv.Kind() != reflect.Func {
+			log.Errorln("参数不能解析：", "application."+k.(string))
 		}
+		fv.Call([]reflect.Value{reflect.ValueOf(v)})
 	}
-	return ipList, nil
 }
 
-func getInterfaceIPs() ([]net.IP, error) {
-	var localIPs []net.IP
-
-	interfaceAddr, err := net.InterfaceAddrs()
-	if err != nil {
-		return nil, fmt.Errorf("Error getting self referencing address: %v", err)
-	}
-
-	for i := 0; i < len(interfaceAddr); i++ {
-		interfaceIP, _, _ := net.ParseCIDR(interfaceAddr[i].String())
-		if net.ParseIP(interfaceIP.String()) != nil {
-			localIPs = append(localIPs, interfaceIP)
-		} else {
-			return nil, fmt.Errorf("Error parsing self referencing address: %v", err)
-		}
-	}
-	return localIPs, nil
+type serverOptions struct {
+	name string
+	port uint64
 }
-func ProcessCommandLineArgs(cmd *flag.FlagSet) (showVersion bool, showHelp bool, err error) {
-	if len(cmd.Args()) > 0 {
-		arg := cmd.Args()[0]
-		switch strings.ToLower(arg) {
-		case "version":
-			return true, false, nil
-		case "help":
-			return false, true, nil
-		default:
-			return false, false, fmt.Errorf("unrecognized command: %q", arg)
-		}
-	}
-	return false, false, nil
+type ServerOption interface {
+	apply(*serverOptions)
 }
-func ConfigureOptions(fs *flag.FlagSet, args []string, printVersion func()) (*Options, error) {
-	opts := &Options{}
-	var (
-		showVersion            bool
-		showHelp               bool
-		showTLSHelp            bool
-		signal                 string
-		configFile             string
-		dbgAndTrace            bool
-		trcAndVerboseTrc       bool
-		dbgAndTrcAndVerboseTrc bool
-		err                    error
-	)
-	fs.BoolVar(&showHelp, "h", false, "Show this message.")
-	fs.BoolVar(&showHelp, "help", false, "Show this message.")
-	fs.IntVar(&opts.Port, "port", 0, "Port to listen on.")
-	fs.IntVar(&opts.Port, "p", 0, "Port to listen on.")
-	fs.StringVar(&opts.ServerName, "n", "", "Server name.")
-	fs.StringVar(&opts.ServerName, "name", "", "Server name.")
-	fs.StringVar(&opts.ServerName, "server_name", "", "Server name.")
-	fs.StringVar(&opts.Host, "addr", "", "Network host to listen on.")
-	fs.StringVar(&opts.Host, "a", "", "Network host to listen on.")
-	fs.StringVar(&opts.Host, "net", "", "Network host to listen on.")
-	fs.BoolVar(&trcAndVerboseTrc, "VV", false, "Enable Verbose Trace logging. (Traces system account as well)")
-	fs.BoolVar(&dbgAndTrace, "DV", false, "Enable Debug and Trace logging.")
-	fs.BoolVar(&dbgAndTrcAndVerboseTrc, "DVV", false, "Enable Debug and Verbose Trace logging. (Traces system account as well)")
-	fs.StringVar(&configFile, "c", "", "Configuration file.")
-	fs.StringVar(&configFile, "config", "", "Configuration file.")
-	fs.StringVar(&signal, "sl", "", "Send signal to nats-server process (stop, quit, reopen, reload).")
-	fs.StringVar(&signal, "signal", "", "Send signal to nats-server process (stop, quit, reopen, reload).")
+type funcServerOption struct {
+	f func(*serverOptions)
+}
 
-	fs.Int64Var(&opts.LogSizeLimit, "log_size_limit", 0, "Logfile size limit being auto-rotated")
+func (fdo *funcServerOption) apply(do *serverOptions) {
+	fdo.f(do)
+}
 
-	fs.BoolVar(&showVersion, "version", false, "Print version information.")
-	fs.BoolVar(&showVersion, "v", false, "Print version information.")
-
-	fs.BoolVar(&showTLSHelp, "help_tls", false, "TLS help.")
-
-	if err := fs.Parse(args); err != nil {
-		return nil, err
+func newFuncServerOption(f func(*serverOptions)) *funcServerOption {
+	return &funcServerOption{
+		f: f,
 	}
-	if showVersion {
-		printVersion()
-		return nil, nil
-	}
+}
 
-	// Process args looking for non-flag options,
-	// 'version' and 'help' only for now
-	showVersion, showHelp, err = ProcessCommandLineArgs(fs)
-	if err != nil {
-		return nil, err
-	} else if showVersion {
-		printVersion()
-		return nil, nil
-	}
-
-	// Process signal control.
-	if signal != "" {
-
-	}
-	// Special handling of some flags
-	var (
-		flagErr error
-	)
-	fs.Visit(func(f *flag.Flag) {
-		// short-circuit if an error was encountered
-		if flagErr != nil {
-			return
-		}
-		if strings.HasPrefix(f.Name, "tls") {
-		}
-
+func WithName(s string) ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.name = s
 	})
-	if flagErr != nil {
-		return nil, flagErr
-	}
-
-	return opts, nil
 }
-
-func normalizeBasePath(p string) string {
-	if len(p) == 0 {
-		return "/"
-	}
-	// add leading slash
-	if p[0] != '/' {
-		p = "/" + p
-	}
-	return path.Clean(p)
-}
-
-// maybeReadPidFile returns a PID or Windows service name obtained via the following method:
-// 1. Try to open a file with path "pidStr" (absolute or relative).
-// 2. If such a file exists and can be read, return its contents.
-// 3. Otherwise, return the original "pidStr" string.
-func maybeReadPidFile(pidStr string) string {
-	if b, err := ioutil.ReadFile(pidStr); err == nil {
-		return string(b)
-	}
-	return pidStr
-}
-
-func homeDir() (string, error) {
-	if runtime.GOOS == "windows" {
-		homeDrive, homePath := os.Getenv("HOMEDRIVE"), os.Getenv("HOMEPATH")
-		userProfile := os.Getenv("USERPROFILE")
-
-		home := filepath.Join(homeDrive, homePath)
-		if homeDrive == "" || homePath == "" {
-			if userProfile == "" {
-				return "", errors.New("nats: failed to get home dir, require %HOMEDRIVE% and %HOMEPATH% or %USERPROFILE%")
-			}
-			home = userProfile
-		}
-
-		return home, nil
-	}
-
-	home := os.Getenv("HOME")
-	if home == "" {
-		return "", errors.New("failed to get home dir, require $HOME")
-	}
-	return home, nil
-}
-
-func expandPath(p string) (string, error) {
-	p = os.ExpandEnv(p)
-
-	if !strings.HasPrefix(p, "~") {
-		return p, nil
-	}
-
-	home, err := homeDir()
-	if err != nil {
-		return "", err
-	}
-
-	return filepath.Join(home, p[1:]), nil
+func WithPort(s string) ServerOption {
+	return newFuncServerOption(func(o *serverOptions) {
+		o.port, _ = strconv.ParseUint(s, 10, 64)
+	})
 }

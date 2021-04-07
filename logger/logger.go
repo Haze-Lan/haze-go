@@ -68,7 +68,7 @@ func (c *Factory) V(l int) bool {
 }
 
 func LoggerFactory(name string) *Factory {
-
+	
 	if cData, ok := cache[name]; ok {
 		return cData
 	}

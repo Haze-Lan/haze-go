@@ -11,6 +11,5 @@ type Service struct {
 	check string
 	//元数据  作为服务选择依据
 	meta map[string]string
-	//标签
-	label []string
+
 }

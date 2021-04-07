@@ -1,7 +1,6 @@
 package server
 
 import (
-	"flag"
 	"github.com/Haze-Lan/haze-go/discovery"
 	"github.com/Haze-Lan/haze-go/logger"
 	"google.golang.org/grpc"
@@ -17,66 +16,52 @@ var log = logger.LoggerFactory("core")
 type Server struct {
 	//注册中心
 	discovery discovery.Discovery
-	opts      *Options
 	rpc       *grpc.Server
+	lis       net.Listener
+	opt       serverOptions
 	//服务状态信号
-	status chan struct{}
+	quit chan int
 }
 
-func NewServer() *Server {
-	server := new(Server)
-	flag.NewFlagSet("haze", flag.ExitOnError)
-
-	if err := server.loadProperty(); err != nil {
-		os.Exit(0)
+//主要用于初始化配置组件
+func NewServer(opts ...ServerOption) *Server {
+	for _, o := range opts {
+		o.apply(&defaultServerOptions)
 	}
-
-	server.loadComponent()
+	lis, err := net.Listen("tcp", ":"+strconv.FormatUint(defaultServerOptions.port, 10))
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	rpc := grpc.NewServer()
+	//TODO 注册服务
+	reflection.Register(rpc)
+	server := &Server{
+		rpc:  rpc,
+		quit: make(chan int),
+		lis:  lis,
+		opt:  defaultServerOptions,
+	}
 	return server
 }
 
-//加载属性
-func (haze *Server) loadProperty() error {
-	haze.opts = &Options{Port: 80}
-	haze.opts.discovery=&discovery.DiscoveryOption{DiscoveryType: "nacos"}
-	haze.discovery = discovery.NewDiscovery(haze.opts.discovery)
-	return nil
-}
-
-//初始化组件
-func (haze *Server) loadComponent() error {
-
-	return nil
-}
-
-func (haze *Server) Start() error {
-	lis, err := net.Listen("tcp", ":"+strconv.Itoa(haze.opts.Port))
-	if err != nil {
-		log.Fatalf("端口：%v 监听失败 ", haze.opts.Port)
-		return err
+func (s *Server) Start() error {
+	go func() {
+		err := s.rpc.Serve(s.lis)
+		if err != nil {
+			log.Fatalf("应用 %s 启动失败，%v ", s.opt.name, err)
+			os.Exit(1)
+		}
+	}()
+	log.Infof("应用  %s 启动完成", s.opt.name)
+	select {
+	case <-s.quit:
+		log.Infof("应用  %s 停止", s.opt.name)
 	}
-	s := grpc.NewServer()
-	//注册接口
-	//test.RegisterWaiterServer(s, &server{})
-	/**如果有可以注册多个接口服务,结构体要实现对应的接口方法
-	 * user.RegisterLoginServer(s, &server{})
-	 * minMovie.RegisterFbiServer(s, &server{})
-	 */
-	// 在gRPC服务器上注册反射服务
-	reflection.Register(s)
-	haze.discovery.RegisterInstance(&discovery.Service{})
-	haze.rpc = s
-	// 将监听交给gRPC服务处理
-	err = s.Serve(lis)
-	if err != nil {
-		log.Fatalf("服务启动失败，%v ", err)
-		return err
-	}
-	log.Infof("应用启动完成 ")
-
 	return nil
 }
 
-func (haze *Server) Shutdown() error {
+//停止应用
+func (s *Server) Shutdown() error {
+	s.quit <- 1
 	return nil
 }

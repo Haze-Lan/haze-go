@@ -1,8 +1,7 @@
 package discovery
 
 type Discovery interface {
-	//初始化
-	Init(opt *DiscoveryOption) error
+
 	//销毁
 	Destroy() error
 
@@ -20,15 +19,14 @@ type Discovery interface {
 	UnsubscribeService() error
 }
 
-func NewDiscovery(opt *DiscoveryOption) Discovery {
-	var dis Discovery
-	switch opt.DiscoveryType {
-	case "nacos":
-		dis = &Nacos{}
+func NewDiscovery(disType string, opts... DiscoveryOption) Discovery {
+	for _,opt := range opts {
+		opt.apply(defaultDiscoveryOption)
 	}
-	err:=dis.Init(opt)
-	if err!=nil {
-		log.Fatalln(err)
+	var dis Discovery
+	switch disType {
+	case "nacos":
+		newNacos(defaultDiscoveryOption)
 	}
 	return dis
 }
