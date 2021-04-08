@@ -19,8 +19,9 @@ type Discovery interface {
 	UnsubscribeService() error
 }
 
-func NewDiscovery(disType string, opts... DiscoveryOption) Discovery {
-	for _,opt := range opts {
+func NewDiscovery(disType string, opts ...DiscoveryOption) Discovery {
+	opts=append(opts, unParseOpts...)
+	for _, opt := range opts {
 		opt.apply(defaultDiscoveryOption)
 	}
 	var dis Discovery

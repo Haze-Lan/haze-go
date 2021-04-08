@@ -2,37 +2,25 @@ package server
 
 import (
 	"flag"
-	"github.com/Haze-Lan/haze-go/utils"
-	"github.com/go-yaml/yaml"
-	"io/ioutil"
-	"reflect"
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/utils"
 	"strconv"
 )
 
-var defaultServerOptions = serverOptions{}
+var defaultServerOptions *serverOptions
+var unParseOpts []ServerOption
 
 func init() {
-	var configPath string
-	base, _ := utils.HomeDir()
-	flag.StringVar(&configPath, "config", base+"\\application.yaml", "config file path")
+	defaultServerOptions = &serverOptions{name: utils.GetUUID(), port: 80}
+	unParseOpts = make([]ServerOption, 0, 10)
+	flag.CommandLine.Func("server.port", "应用启动端口", func(s string) error {
+		unParseOpts = append(unParseOpts, WithPort(s))
+		return nil
+	})
+	flag.CommandLine.Func("server.name", "应用名称", func(s string) error {
+		unParseOpts = append(unParseOpts, WithName(s))
+		return nil
+	})
 	flag.Parse()
-	log.Infoln("加载配置文件：", configPath)
-	m := make(map[string]interface{})
-	data, err := ioutil.ReadFile(configPath)
-	if err != nil {
-		log.Fatalln("配置文件读取错误: ", err.Error())
-	}
-	err = yaml.Unmarshal(data, &m)
-	if err != nil {
-		log.Fatalln("error: ", err)
-	}
-	for k, v := range m["application"].((map[interface{}]interface{})) {
-		fv := reflect.ValueOf("With" + k.(string))
-		if fv.Kind() != reflect.Func {
-			log.Errorln("参数不能解析：", "application."+k.(string))
-		}
-		fv.Call([]reflect.Value{reflect.ValueOf(v)})
-	}
 }
 
 type serverOptions struct {

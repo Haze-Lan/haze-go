@@ -4,7 +4,6 @@ go 1.16
 
 require (
 	github.com/go-errors/errors v1.0.1
-	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/golang/mock v1.4.4 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
