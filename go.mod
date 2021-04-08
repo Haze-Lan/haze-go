@@ -3,11 +3,13 @@ module github.com/Haze-Lan/haze-go
 go 1.16
 
 require (
+	github.com/aliyun/alibaba-cloud-sdk-go v1.61.18
 	github.com/go-errors/errors v1.0.1
 	github.com/golang/mock v1.4.4 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
 	github.com/kr/pretty v0.2.0 // indirect
+	github.com/magiconair/properties v1.8.5
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/nacos-group/nacos-sdk-go v1.0.7
 	github.com/stretchr/testify v1.6.1 // indirect

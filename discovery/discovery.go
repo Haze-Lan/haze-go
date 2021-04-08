@@ -1,15 +1,17 @@
 package discovery
 
+import "github.com/Haze-Lan/haze-go/option"
+
 type Discovery interface {
 
 	//销毁
 	Destroy() error
 
-	RegisterInstance(service *Service) error
+	RegisterInstance(service *Instance) error
 
-	DeregisterInstance(service *Service) error
+	DeregisterInstance(service *Instance) error
 
-	GetService() (services []Service, err error)
+	GetService() (services []Instance, err error)
 
 	SelectInstances() (instances []Instance, err error)
 
@@ -19,15 +21,17 @@ type Discovery interface {
 	UnsubscribeService() error
 }
 
-func NewDiscovery(disType string, opts ...DiscoveryOption) Discovery {
-	opts=append(opts, unParseOpts...)
-	for _, opt := range opts {
-		opt.apply(defaultDiscoveryOption)
+var discoveryOptions *option.DiscoveryOptions
+
+func NewDiscovery() Discovery {
+	discoveryOptions, err := option.LoadDiscoveryOptions()
+	if err != nil {
+		log.Fatalln(err.Error())
 	}
 	var dis Discovery
-	switch disType {
+	switch discoveryOptions.ServerType {
 	case "nacos":
-		newNacos(defaultDiscoveryOption)
+		dis = newNacos(discoveryOptions)
 	}
 	return dis
 }
