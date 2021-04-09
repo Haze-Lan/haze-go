@@ -1,6 +1,9 @@
 package discovery
 
-import "github.com/Haze-Lan/haze-go/option"
+import (
+	"github.com/Haze-Lan/haze-go/logger"
+	"github.com/Haze-Lan/haze-go/option"
+)
 
 type Discovery interface {
 
@@ -22,16 +25,16 @@ type Discovery interface {
 }
 
 var discoveryOptions *option.DiscoveryOptions
-
+var log = logger.LoggerFactory("discovery")
 func NewDiscovery() Discovery {
 	discoveryOptions, err := option.LoadDiscoveryOptions()
 	if err != nil {
-		log.Fatalln(err.Error())
+		log.Fatal(err.Error())
 	}
 	var dis Discovery
 	switch discoveryOptions.ServerType {
 	case "nacos":
-		dis = newNacos(discoveryOptions)
+		dis = NewNacos(discoveryOptions)
 	}
 	return dis
 }

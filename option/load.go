@@ -6,11 +6,11 @@ import (
 	"github.com/magiconair/properties"
 )
 
-var prop properties.Properties
+var prop *properties.Properties
 
 func init() {
 	path, _ := utils.GetCurrentDirectory()
-	prop := properties.MustLoadFile(path+"/application.properties", properties.UTF8)
+	prop = properties.MustLoadFile(path+"/application.properties", properties.UTF8)
 	prop.MustFlag(flag.CommandLine)
 }
 
@@ -29,4 +29,14 @@ func LoadDiscoveryOptions() (opt *DiscoveryOptions, err error) {
 		return nil, err
 	}
 	return discoveryOptionsInstance, nil
+}
+
+
+func LoadLoggingOptions() (opt *LoggingOptions, err error) {
+	var loggingOptionsInstance = &LoggingOptions{}
+	err = prop.Decode(loggingOptionsInstance)
+	if err != nil {
+		return nil, err
+	}
+	return loggingOptionsInstance, nil
 }

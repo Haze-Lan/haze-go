@@ -1,7 +1,6 @@
 package discovery
 
 import (
-	"github.com/Haze-Lan/haze-go/logger"
 	"github.com/Haze-Lan/haze-go/option"
 	"github.com/Haze-Lan/haze-go/utils"
 	"github.com/nacos-group/nacos-sdk-go/clients"
@@ -12,18 +11,18 @@ import (
 	"path/filepath"
 )
 
-var log = logger.LoggerFactory("nacos")
+
 
 type Nacos struct {
 	client naming_client.INamingClient
 	opt    *option.DiscoveryOptions
 }
 
-func newNacos(opts *option.DiscoveryOptions) Discovery {
+func NewNacos(opts *option.DiscoveryOptions) Discovery {
 	var nacos = &Nacos{}
 	path, err := os.Executable()
 	if err != nil {
-		log.Error(err)
+		log.Error(err.Error())
 	}
 	dir := filepath.Dir(path)
 	clientConfig := *constant.NewClientConfig(
@@ -46,7 +45,7 @@ func newNacos(opts *option.DiscoveryOptions) Discovery {
 	}
 	nacos.client, err = clients.NewNamingClient(vo.NacosClientParam{ClientConfig: &clientConfig, ServerConfigs: serverConfigs})
 	if err != nil {
-		log.Fatalln(err.Error())
+		log.Fatal(err.Error())
 	}
 	return nacos
 }
@@ -58,14 +57,14 @@ func (dis *Nacos) Destroy() error {
 
 func (dis *Nacos) RegisterInstance(service *Instance) error {
 	_, err := dis.client.RegisterInstance(vo.RegisterInstanceParam{
-		Ip:          service.ip,
-		Port:        service.port,
-		ServiceName: service.name,
-		Weight:      service.weight,
+		Ip:          service.Ip,
+		Port:        service.Port,
+		ServiceName: service.Name,
+		Weight:      service.Weight,
 		Enable:      true,
-		Healthy:     len(service.check) != 0,
+		Healthy:     len(service.Check) != 0,
 		Ephemeral:   true,
-		Metadata:    service.meta,
+		Metadata:    service.Meta,
 		ClusterName: "DEFAULT",       // 默认值DEFAULT
 		GroupName:   "DEFAULT_GROUP", // 默认值DEFAULT_GROUP
 	})
@@ -77,9 +76,9 @@ func (dis *Nacos) RegisterInstance(service *Instance) error {
 
 func (dis *Nacos) DeregisterInstance(service *Instance) error {
 	_, err := dis.client.DeregisterInstance(vo.DeregisterInstanceParam{
-		Ip:          service.ip,
-		Port:        service.port,
-		ServiceName: service.name,
+		Ip:          service.Ip,
+		Port:        service.Port,
+		ServiceName: service.Name,
 		Ephemeral:   true,
 		Cluster:     "DEFAULT",       // 默认值DEFAULT
 		GroupName:   "DEFAULT_GROUP", // 默认值DEFAULT_GROUP

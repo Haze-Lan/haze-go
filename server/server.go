@@ -29,11 +29,11 @@ type Server struct {
 func NewServer() *Server {
 	opt, err := option.LoadServerOptions()
 	if err != nil {
-		log.Fatalln(err.Error())
+		log.Fatal(err.Error())
 	}
 	lis, err := net.Listen("tcp", ":"+strconv.FormatUint(opt.Port, 10))
 	if err != nil {
-		log.Fatalln(err.Error())
+		log.Fatal(err.Error())
 	}
 	rpc := grpc.NewServer()
 	discovery := discovery.NewDiscovery()
@@ -55,9 +55,9 @@ func (s *Server) Start() error {
 		s.waitGroup.Add(1)
 		err := s.rpc.Serve(s.lis)
 		if err != nil {
-			log.Fatalf("应用启动失败 ")
+			log.Fatal("应用启动失败 ")
 		}
-		log.Infoln("grpc 组件  关闭")
+		log.Info("grpc 组件  关闭")
 		s.waitGroup.Done()
 	}()
 	//注册服务
@@ -66,15 +66,15 @@ func (s *Server) Start() error {
 		var service = discovery.NewService(s.opt)
 		err := s.discovery.RegisterInstance(service)
 		if err != nil {
-			log.Errorln(err.Error())
+			log.Error(err.Error())
 		}
 		s.waitGroup.Done()
 	}()
-	log.Infoln("应用  %s 启动在本机 %d 完成", s.opt.Name, s.opt.Port)
+	log.Info("应用  %s 启动在本机 %d 完成", s.opt.Name, s.opt.Port)
 	select {
 	case <-s.quit:
 		s.waitGroup.Wait()
-		log.Infoln("应用停止")
+		log.Info("应用停止")
 	}
 	return nil
 }

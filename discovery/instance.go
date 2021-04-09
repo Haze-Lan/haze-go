@@ -7,32 +7,32 @@ import (
 )
 
 type Instance struct {
-	weight float64
-	ip     string
-	port   uint64
+	Weight float64
+	Ip     string
+	Port   uint64
 	//服务名称
-	name string
+	Name string
 	//服务唯一标识
-	id string
+	Id string
 	//监控检查地址
-	check string
+	Check string
 	//元数据  作为服务选择依据
-	meta map[string]string
+	Meta map[string]string
 }
 
 func NewService(opt *option.ServerOptions) *Instance {
 	discoveryOptions, _ := option.LoadDiscoveryOptions()
 	ip := utils.GetIp()
-	var defaultService = &Instance{meta: make(map[string]string, 0)}
+	var defaultService = &Instance{Meta: make(map[string]string, 0)}
 	defaultService = defaultService.WithID(discoveryOptions.InstanceId).WithPort(opt.Port).WithIp(ip).WithWeight(discoveryOptions.InstanceWeight).WithName(opt.Name).WithIp(opt.Host)
 	return defaultService
 }
 func (s *Instance) WithWeight(w float64) *Instance {
-	s.weight = w
+	s.Weight = w
 	return s
 }
 func (s *Instance) WithIp(ip string) *Instance {
-	s.ip = ip
+	s.Ip = ip
 	return s
 }
 func (s *Instance) WithID(id string) *Instance {
@@ -40,22 +40,22 @@ func (s *Instance) WithID(id string) *Instance {
 		idItem, _ := uuid.NewV4()
 		id = idItem.String()
 	}
-	s.id = id
+	s.Id = id
 	return s
 }
 func (s *Instance) WithPort(port uint64) *Instance {
-	s.port = port
+	s.Port = port
 	return s
 }
 func (s *Instance) WithName(name string) *Instance {
-	s.name = name
+	s.Name = name
 	return s
 }
 func (s *Instance) WithCheck(check string) *Instance {
-	s.check = check
+	s.Check = check
 	return s
 }
 func (s *Instance) WithMeta(key string, value string) *Instance {
-	s.meta[key] = value
+	s.Meta[key] = value
 	return s
 }

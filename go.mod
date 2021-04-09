@@ -3,7 +3,7 @@ module github.com/Haze-Lan/haze-go
 go 1.16
 
 require (
-	github.com/aliyun/alibaba-cloud-sdk-go v1.61.18
+	github.com/aliyun/alibaba-cloud-sdk-go v1.61.18 // indirect
 	github.com/go-errors/errors v1.0.1
 	github.com/golang/mock v1.4.4 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
