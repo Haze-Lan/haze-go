@@ -1,9 +1,9 @@
 package server
 
 import (
-	"github.com/Haze-Lan/haze-go/discovery"
 	"github.com/Haze-Lan/haze-go/logger"
 	"github.com/Haze-Lan/haze-go/option"
+	"github.com/Haze-Lan/haze-go/registry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"net"
@@ -11,12 +11,12 @@ import (
 	"sync"
 )
 
-var log = logger.LoggerFactory("core")
+var log = logger.Factory("core")
 
 //每个服务的实列
 type Server struct {
 	//注册中心
-	discovery discovery.Discovery
+	discovery registry.Discovery
 	rpc       *grpc.Server
 	lis       net.Listener
 	waitGroup sync.WaitGroup
@@ -36,7 +36,7 @@ func NewServer() *Server {
 		log.Fatal(err.Error())
 	}
 	rpc := grpc.NewServer()
-	discovery := discovery.NewDiscovery()
+	discovery := registry.NewDiscovery()
 	//TODO 注册服务
 	reflection.Register(rpc)
 	server := &Server{
@@ -63,7 +63,7 @@ func (s *Server) Start() error {
 	//注册服务
 	go func() {
 		s.waitGroup.Add(1)
-		var service = discovery.NewService(s.opt)
+		var service = registry.NewService(s.opt)
 		err := s.discovery.RegisterInstance(service)
 		if err != nil {
 			log.Error(err.Error())

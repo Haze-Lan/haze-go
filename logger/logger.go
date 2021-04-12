@@ -1,65 +1,67 @@
 package logger
 
 import (
-	"github.com/Haze-Lan/haze-go/option"
-	"google.golang.org/grpc/grpclog"
+	"fmt"
+	"go.uber.org/zap"
+	"sync"
 )
 
-var loggingOptions *option.LoggingOptions
+var log_ *zapGrpcLoggerV2
+var one sync.Once
 
-func init() {
-	loggingOptions, _ = option.LoadLoggingOptions()
+type zapGrpcLoggerV2 struct {
+	logger    *zap.Logger
+	verbosity int
 }
 
-//Logger生成器
-type Logger struct {
-	name string
+func (l *zapGrpcLoggerV2) Info(args ...interface{}) {
+	l.logger.Info(fmt.Sprint(args...))
 }
 
-var cache = map[string]*Logger{}
-
-func (c *Logger) Info(format string, args ...interface{}) {
-
-	if len(args) == 0 {
-		grpclog.Infoln(format)
-	} else {
-		grpclog.Infof(format, args)
-	}
+func (l *zapGrpcLoggerV2) Infoln(args ...interface{}) {
+	l.logger.Info(fmt.Sprint(args...))
 }
 
-func (c *Logger) Warn(format string, args ...interface{}) {
-	if len(args) == 0 {
-		grpclog.Warningln(format)
-	} else {
-		grpclog.Warningf(format, args)
-	}
+func (l *zapGrpcLoggerV2) Infof(format string, args ...interface{}) {
+	l.logger.Info(fmt.Sprintf(format, args...))
 }
 
-func (c *Logger) Error(format string, args ...interface{}) {
-	if len(args) == 0 {
-		grpclog.Errorln(format)
-	} else {
-		grpclog.Errorf(format, args)
-	}
+func (l *zapGrpcLoggerV2) Warning(args ...interface{}) {
+	l.logger.Warn(fmt.Sprint(args...))
 }
 
-func (c *Logger) Fatal(format string, args ...interface{}) {
-	if len(args) == 0 {
-		grpclog.Fatalln(format)
-	} else {
-		grpclog.Fatalf(format, args)
-	}
+func (l *zapGrpcLoggerV2) Warningln(args ...interface{}) {
+	l.logger.Warn(fmt.Sprint(args...))
 }
 
-func (c *Logger) V(l int) bool {
-	return c.V(l)
+func (l *zapGrpcLoggerV2) Warningf(format string, args ...interface{}) {
+	l.logger.Warn(fmt.Sprintf(format, args...))
 }
 
-func LoggerFactory(name string) *Logger {
-	if cData, ok := cache[name]; ok {
-		return cData
-	}
-	c := &Logger{name}
-	cache[name] = c
-	return c
+func (l *zapGrpcLoggerV2) Error(args ...interface{}) {
+	l.logger.Error(fmt.Sprint(args...))
+}
+
+func (l *zapGrpcLoggerV2) Errorln(args ...interface{}) {
+	l.logger.Error(fmt.Sprint(args...))
+}
+
+func (l *zapGrpcLoggerV2) Errorf(format string, args ...interface{}) {
+	l.logger.Error(fmt.Sprintf(format, args...))
+}
+
+func (l *zapGrpcLoggerV2) Fatal(args ...interface{}) {
+	l.logger.Fatal(fmt.Sprint(args...))
+}
+
+func (l *zapGrpcLoggerV2) Fatalln(args ...interface{}) {
+	l.logger.Fatal(fmt.Sprint(args...))
+}
+
+func (l *zapGrpcLoggerV2) Fatalf(format string, args ...interface{}) {
+	l.logger.Fatal(fmt.Sprintf(format, args...))
+}
+
+func (l *zapGrpcLoggerV2) V(level int) bool {
+	return l.verbosity <= level
 }
