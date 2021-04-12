@@ -1,8 +1,14 @@
 package server
 
 import (
+
 	"github.com/Haze-Lan/haze-go/option"
 	"github.com/Haze-Lan/haze-go/provide"
+
+	"github.com/Haze-Lan/haze-go/logger"
+	"github.com/Haze-Lan/haze-go/option"
+	"github.com/Haze-Lan/haze-go/registry"
+
 	"google.golang.org/grpc"
 	gservice "google.golang.org/grpc/channelz/service"
 	"google.golang.org/grpc/grpclog"
@@ -12,10 +18,17 @@ import (
 	"sync"
 )
 
-var log = grpclog.Component("core")
+
+
+
+
+var log = logger.Factory("core")
 
 //每个服务的实列
 type Server struct {
+	//注册中心
+	discovery registry.Discovery
+
 	rpc       *grpc.Server
 	lis       net.Listener
 	waitGroup sync.WaitGroup
@@ -36,7 +49,12 @@ func NewServer() *Server {
 	}
 	rpc := grpc.NewServer()
 
+
 	gservice.RegisterChannelzServiceToServer(rpc)
+
+	discovery := registry.NewDiscovery()
+	//TODO 注册服务
+
 	reflection.Register(rpc)
 	server := &Server{
 		rpc:  rpc,
@@ -61,6 +79,18 @@ func (s *Server) Start() error {
 		log.Info("grpc 组件  关闭")
 		s.waitGroup.Done()
 	}()
+
+	//注册服务
+	go func() {
+		s.waitGroup.Add(1)
+		var service = registry.NewService(s.opt)
+		err := s.discovery.RegisterInstance(service)
+		if err != nil {
+			log.Error(err.Error())
+		}
+		s.waitGroup.Done()
+	}()
+	log.Info("应用  %s 启动在本机 %d 完成", s.opt.Name, s.opt.Port)
 
 	select {
 	case <-s.quit:

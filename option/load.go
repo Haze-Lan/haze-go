@@ -31,7 +31,6 @@ func LoadDiscoveryOptions() (opt *DiscoveryOptions, err error) {
 	return discoveryOptionsInstance, nil
 }
 
-
 func LoadLoggingOptions() (opt *LoggingOptions, err error) {
 	var loggingOptionsInstance = &LoggingOptions{}
 	err = prop.Decode(loggingOptionsInstance)
