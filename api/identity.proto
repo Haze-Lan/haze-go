@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+option go_package = "../api";
+
+package api;
+
+
+service Account {
+  // Sends a greeting
+  rpc Authentication (LoginRequest) returns (LoginResponse) {}
+}
+
+
+message LoginRequest {
+  string name = 1;
+  string pass = 2;
+}
+
+// The response message containing the greetings
+message LoginResponse {
+  string message = 1;
+
+}

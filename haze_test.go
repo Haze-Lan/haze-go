@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"github.com/Haze-Lan/haze-go/api"
+	"github.com/Haze-Lan/haze-go/provide/endpoint"
+	"github.com/Haze-Lan/haze-go/provide/model"
 	"google.golang.org/grpc"
 	"log"
 	"testing"
@@ -10,8 +11,7 @@ import (
 )
 
 const (
-	address     = "localhost:50051"
-	defaultName = "world"
+	address = "localhost:80"
 )
 
 func Test(t *testing.T) {
@@ -21,13 +21,11 @@ func Test(t *testing.T) {
 		log.Fatalf("did not connect: %v", err)
 	}
 	defer conn.Close()
-	c := api.NewGreeterClient(conn)
+	c := endpoint.NewAccountClient(conn)
 
-	// Contact the server and print out its response.
-	name := defaultName
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.SayHello(ctx, &api.HelloRequest{Name: name})
+	r, err := c.Authentication(ctx, &model.LoginRequest{Name: "33", Pass: "222"})
 	if err != nil {
 		log.Fatalf("could not greet: %v", err)
 	}
