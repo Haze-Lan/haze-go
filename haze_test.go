@@ -1,13 +1,11 @@
 package main
 
 import (
-	"context"
-	"github.com/Haze-Lan/haze-go/provide/endpoint"
-	"github.com/Haze-Lan/haze-go/provide/model"
+	"fmt"
+
 	"google.golang.org/grpc"
 	"log"
 	"testing"
-	"time"
 )
 
 const (
@@ -16,19 +14,10 @@ const (
 
 func Test(t *testing.T) {
 	// Set up a connection to the server.
-	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.Dial(fmt.Sprintf("%s:///%s", "", ""), grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
 	defer conn.Close()
-	c := endpoint.NewAccountClient(conn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	r, err := c.Authentication(ctx, &model.LoginRequest{Name: "33", Pass: "222"})
-	if err != nil {
-		log.Fatalf("could not greet: %v", err)
-	}
-	log.Printf("Greeting: %s", r.GetMessage())
 
 }

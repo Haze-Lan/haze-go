@@ -4,160 +4,105 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
+	"github.com/Haze-Lan/haze-go/event"
+	"github.com/Haze-Lan/haze-go/option"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/grpc/grpclog"
+	"sync"
+	"time"
 )
 
-package registry
+var options *option.RegistryOptions
+var log = grpclog.Component("registry")
 
-import (
-"context"
-"encoding/json"
-"fmt"
-"io"
-
-"github.com/douyu/jupiter/pkg/server"
-)
-
-// Event ...
-type Event uint8
-
-const (
-	// EventUnknown ...
-	EventUnknown Event = iota
-	// EventUpdate ...
-	EventUpdate
-	// EventDelete ...
-	EventDelete
-)
-
-// Kind ...
-type Kind uint8
-
-const (
-	// KindUnknown ...
-	KindUnknown Kind = iota
-	// KindProvider ...
-	KindProvider
-	// KindConfigurator ...
-	KindConfigurator
-	// KindConsumer ...
-	KindConsumer
-)
-
-// String ...
-func (kind Kind) String() string {
-	switch kind {
-	case KindProvider:
-		return "providers"
-	case KindConfigurator:
-		return "configurators"
-	case KindConsumer:
-		return "consumers"
-	default:
-		return "unknown"
-	}
-}
-
-// ToKind ...
-func ToKind(kindStr string) Kind {
-	switch kindStr {
-	case "providers":
-		return KindProvider
-	case "configurators":
-		return KindConfigurator
-	case "consumers":
-		return KindConsumer
-	default:
-		return KindUnknown
-	}
-}
-
-// ServerInstance ...
-type ServerInstance struct {
-	Scheme string
-	IP     string
-	Port   int
-	Labels map[string]string
-}
-
-// EventMessage ...
-type EventMessage struct {
-	Event
-	Kind
-	Name    string
-	Scheme  string
-	Address string
-	Message interface{}
-}
-
-// Registry register/unregister service
-// registry impl should control rpc timeout
 type Registry interface {
 	RegisterService(context.Context, *Instance) error
 	UnregisterService(context.Context, *Instance) error
 	ListServices(context.Context, string, string) ([]*Instance, error)
-	WatchServices(context.Context, string, string) (chan Endpoints, error)
-	io.Closer
+}
+type etcdv3Registry struct {
+	client *clientv3.Client
+	kvs    sync.Map
+	cancel context.CancelFunc
+	rmu    *sync.RWMutex
+	opt    *option.RegistryOptions
 }
 
-//GetServiceKey ..
-func GetServiceKey(prefix string, s *Instance) string {
-	return fmt.Sprintf("/%s/%s/%s/%s://%s", prefix, s.Name, s.Kind.String(), s.Scheme, s.Address)
+func init() {
+	var err error
+	options, err = option.LoadDiscoveryOptions()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 }
 
-//GetServiceValue ..
-func GetServiceValue(s *Instance) string {
-	val, _ := json.Marshal(s)
+func NewRegistry() *etcdv3Registry {
+	config := clientv3.Config{
+		Endpoints:   options.ServerHost,
+		DialTimeout: 10 * time.Second,
+		Context:     context.TODO(),
+	}
+	client, err := clientv3.New(config)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	r := &etcdv3Registry{
+		client: client,
+		kvs:    sync.Map{},
+		rmu:    &sync.RWMutex{},
+		opt:    options,
+	}
+	log.Info("discovery initialization completed")
+	event.GlobalEventBus.Subscribe(event.EVENT_TOPIC_SERVER_QUIT, func(data interface{}) {
+		r.Stop()
+	})
+	return r
+}
+
+func (r *etcdv3Registry) Stop() {
+	log.Infof("close the %s component", "registry")
+	r.client.Close()
+}
+
+func (r *etcdv3Registry) RegisterService(ctx context.Context, info *Instance) error {
+	key := r.registerKey(info)
+	val := r.registerValue(info)
+	opOptions := make([]clientv3.OpOption, 0)
+	_, err := r.client.Put(ctx, key, val, opOptions...)
+	if err != nil {
+		log.Errorf("register service %s", err.Error())
+		return err
+	}
+	log.Infof("register service %s %s", key, val)
+	r.kvs.Store(key, val)
+	return nil
+}
+
+func (r *etcdv3Registry) UnregisterService(ctx context.Context, info *Instance) error {
+	return r.unregister(ctx, r.registerKey(info))
+}
+
+func (r *etcdv3Registry) ListServices(ctx context.Context, name string, scheme string) (services []*Instance, err error) {
+	return nil, nil
+}
+func (r *etcdv3Registry) unregister(ctx context.Context, key string) error {
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 10)
+		defer cancel()
+	}
+	_, err := r.client.Delete(ctx, key)
+	if err == nil {
+		r.kvs.Delete(key)
+	}
+	return err
+}
+
+func (r *etcdv3Registry) registerKey(ins *Instance) string {
+	return fmt.Sprintf("/%s/%s/%s/%s://%s", ins.Region, ins.Zone, ins.Namespace, ins.Name, ins.Address)
+}
+
+func (r *etcdv3Registry) registerValue(ins *Instance) string {
+	val, _ := json.Marshal(ins)
 	return string(val)
-}
-
-//GetService ..
-func GetService(s string) *Instance {
-	var si Instance
-	json.Unmarshal([]byte(s), &si)
-	return &si
-}
-
-// Nop registry, used for local development/debugging
-type Nop struct{}
-
-// ListServices ...
-func (n Nop) ListServices(ctx context.Context, s string, s2 string) ([]*Instance, error) {
-	panic("implement me")
-}
-
-// WatchServices ...
-func (n Nop) WatchServices(ctx context.Context, s string, s2 string) (chan Endpoints, error) {
-	panic("implement me")
-}
-
-// RegisterService ...
-func (n Nop) RegisterService(context.Context, *Instance) error { return nil }
-
-// UnregisterService ...
-func (n Nop) UnregisterService(context.Context, *Instance) error { return nil }
-
-// Close ...
-func (n Nop) Close() error { return nil }
-
-// Configuration ...
-type Configuration struct {
-	Routes []Route           `json:"routes"` // 配置客户端路由策略
-	Labels map[string]string `json:"labels"` // 配置服务端标签: 分组
-}
-
-// Route represents route configuration
-type Route struct {
-	// 路由方法名
-	Method string `json:"method" toml:"method"`
-	// 路由权重组, 按比率在各个权重组中分配流量
-	WeightGroups []WeightGroup `json:"weightGroups" toml:"weightGroups"`
-	// 路由部署组, 将流量导入部署组
-	Deployment string `json:"deployment" toml:"deployment"`
-}
-
-// WeightGroup ...
-type WeightGroup struct {
-	Group  string `json:"group" toml:"group"`
-	Weight int    `json:"weight" toml:"weight"`
 }

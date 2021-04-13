@@ -4,9 +4,12 @@ import (
 	"flag"
 	"github.com/Haze-Lan/haze-go/utils"
 	"github.com/magiconair/properties"
+	"google.golang.org/grpc/grpclog"
 )
 
+var log = grpclog.Component("option")
 var prop *properties.Properties
+var serverOptionsInstance *ServerOptions
 
 func init() {
 	path, _ := utils.GetCurrentDirectory()
@@ -15,19 +18,20 @@ func init() {
 }
 
 func LoadServerOptions() (opt *ServerOptions, err error) {
-	var serverOptionsInstance = &ServerOptions{}
+	serverOptionsInstance = &ServerOptions{}
 	err = prop.Decode(serverOptionsInstance)
 	if err != nil {
 		return nil, err
 	}
 	return serverOptionsInstance, nil
 }
-func LoadDiscoveryOptions() (opt *DiscoveryOptions, err error) {
-	var discoveryOptionsInstance = &DiscoveryOptions{}
+func LoadDiscoveryOptions() (opt *RegistryOptions, err error) {
+	var discoveryOptionsInstance = &RegistryOptions{}
 	err = prop.Decode(discoveryOptionsInstance)
 	if err != nil {
 		return nil, err
 	}
+
 	return discoveryOptionsInstance, nil
 }
 

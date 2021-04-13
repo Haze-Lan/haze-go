@@ -1,67 +1,102 @@
 package logger
 
 import (
-	"fmt"
+	"github.com/Haze-Lan/haze-go/option"
+	"github.com/Haze-Lan/haze-go/utils"
 	"go.uber.org/zap"
-	"sync"
+	"go.uber.org/zap/zapcore"
+	"google.golang.org/grpc/grpclog"
+	"os"
 )
 
-var log_ *zapGrpcLoggerV2
-var one sync.Once
-
-type zapGrpcLoggerV2 struct {
-	logger    *zap.Logger
-	verbosity int
+type ZapLogger struct {
+	logger *zap.Logger
 }
 
-func (l *zapGrpcLoggerV2) Info(args ...interface{}) {
-	l.logger.Info(fmt.Sprint(args...))
+func NewLogger() {
+	var opt, err = option.LoadLoggingOptions()
+	if err != nil {
+		panic(err)
+	}
+	path, _ := utils.GetCurrentDirectory()
+	option.WithFilePath(path).Apply(opt)
+	/*hook := lumberjack.Logger{
+		Filename:   opt.FilePath + "/app.log", //日志文件路径
+		MaxSize:    128,                       //最大字节
+		MaxAge:     30,
+		MaxBackups: 7,
+		Compress:   true,
+	}*/
+	w := zapcore.AddSync(os.Stdout)
+	// debug->info->warn->error
+	var level = zap.DebugLevel
+	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.000Z0700")
+	core := zapcore.NewCore(
+		zapcore.NewConsoleEncoder(encoderConfig),
+		w,
+		level,
+	)
+
+	logger := zap.New(core)
+	logger.Info("Logger init success")
+
+	var log = &ZapLogger{
+		logger: logger,
+	}
+	grpclog.SetLoggerV2(log)
+
 }
 
-func (l *zapGrpcLoggerV2) Infoln(args ...interface{}) {
-	l.logger.Info(fmt.Sprint(args...))
+func (zl *ZapLogger) Info(args ...interface{}) {
+	zl.logger.Sugar().Info(args...)
 }
 
-func (l *zapGrpcLoggerV2) Infof(format string, args ...interface{}) {
-	l.logger.Info(fmt.Sprintf(format, args...))
+func (zl *ZapLogger) Infoln(args ...interface{}) {
+	zl.logger.Sugar().Info(args...)
+}
+func (zl *ZapLogger) Infof(format string, args ...interface{}) {
+	zl.logger.Sugar().Infof(format, args...)
 }
 
-func (l *zapGrpcLoggerV2) Warning(args ...interface{}) {
-	l.logger.Warn(fmt.Sprint(args...))
+func (zl *ZapLogger) Warning(args ...interface{}) {
+	zl.logger.Sugar().Warn(args...)
 }
 
-func (l *zapGrpcLoggerV2) Warningln(args ...interface{}) {
-	l.logger.Warn(fmt.Sprint(args...))
+func (zl *ZapLogger) Warningln(args ...interface{}) {
+	zl.logger.Sugar().Warn(args...)
 }
 
-func (l *zapGrpcLoggerV2) Warningf(format string, args ...interface{}) {
-	l.logger.Warn(fmt.Sprintf(format, args...))
+func (zl *ZapLogger) Warningf(format string, args ...interface{}) {
+	zl.logger.Sugar().Warnf(format, args...)
 }
 
-func (l *zapGrpcLoggerV2) Error(args ...interface{}) {
-	l.logger.Error(fmt.Sprint(args...))
+func (zl *ZapLogger) Error(args ...interface{}) {
+	zl.logger.Sugar().Error(args...)
 }
 
-func (l *zapGrpcLoggerV2) Errorln(args ...interface{}) {
-	l.logger.Error(fmt.Sprint(args...))
+func (zl *ZapLogger) Errorln(args ...interface{}) {
+	zl.logger.Sugar().Error(args...)
 }
 
-func (l *zapGrpcLoggerV2) Errorf(format string, args ...interface{}) {
-	l.logger.Error(fmt.Sprintf(format, args...))
+func (zl *ZapLogger) Errorf(format string, args ...interface{}) {
+	zl.logger.Sugar().Errorf(format, args...)
 }
 
-func (l *zapGrpcLoggerV2) Fatal(args ...interface{}) {
-	l.logger.Fatal(fmt.Sprint(args...))
+func (zl *ZapLogger) Fatal(args ...interface{}) {
+	zl.logger.Sugar().Fatal(args...)
 }
 
-func (l *zapGrpcLoggerV2) Fatalln(args ...interface{}) {
-	l.logger.Fatal(fmt.Sprint(args...))
+func (zl *ZapLogger) Fatalln(args ...interface{}) {
+	zl.logger.Sugar().Fatal(args...)
 }
 
-func (l *zapGrpcLoggerV2) Fatalf(format string, args ...interface{}) {
-	l.logger.Fatal(fmt.Sprintf(format, args...))
+// Fatalf logs to fatal level
+func (zl *ZapLogger) Fatalf(format string, args ...interface{}) {
+	zl.logger.Sugar().Fatalf(format, args...)
 }
 
-func (l *zapGrpcLoggerV2) V(level int) bool {
-	return l.verbosity <= level
+// V reports whether verbosity level l is at least the requested verbose level.
+func (zl *ZapLogger) V(v int) bool {
+	return false
 }

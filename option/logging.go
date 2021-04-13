@@ -10,3 +10,25 @@ type LoggingOptions struct {
 	FileLimit string            `properties:"logging.file.limit,default=100MB"`
 	FileRate  uint64            `properties:"logging.file.rate,default=30"`
 }
+
+type LoggingOptionsFun interface {
+	Apply(*LoggingOptions)
+}
+type funcLoggingOptionsFun struct {
+	f func(*LoggingOptions)
+}
+
+func (fdo *funcLoggingOptionsFun) Apply(do *LoggingOptions) {
+	fdo.f(do)
+}
+
+func newFuncLoggingOptions(f func(*LoggingOptions)) *funcLoggingOptionsFun {
+	return &funcLoggingOptionsFun{
+		f: f,
+	}
+}
+func WithFilePath(s string) LoggingOptionsFun {
+	return newFuncLoggingOptions(func(o *LoggingOptions) {
+		o.FilePath = s + "\\" + o.FilePath
+	})
+}
