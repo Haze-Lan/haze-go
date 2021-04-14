@@ -14,12 +14,8 @@ type ZapLogger struct {
 }
 
 func NewLogger() {
-	var opt, err = option.LoadLoggingOptions()
-	if err != nil {
-		panic(err)
-	}
 	path, _ := utils.GetCurrentDirectory()
-	option.WithFilePath(path).Apply(opt)
+	option.WithFilePath(path).Apply(option.LoggingOptionsInstance)
 	/*hook := lumberjack.Logger{
 		Filename:   opt.FilePath + "/app.log", //日志文件路径
 		MaxSize:    128,                       //最大字节

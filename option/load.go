@@ -9,37 +9,29 @@ import (
 
 var log = grpclog.Component("option")
 var prop *properties.Properties
-var serverOptionsInstance *ServerOptions
+var ServerOptionsInstance *ServerOptions
+var RegistryOptionsInstance *RegistryOptions
+var LoggingOptionsInstance *LoggingOptions
 
 func init() {
 	path, _ := utils.GetCurrentDirectory()
-	prop = properties.MustLoadFile(path+"/application.properties", properties.UTF8)
+	filePath:=flag.CommandLine.String("c", path + "/application.properties", "configuration file path")
+	flag.Parse()
+	prop = properties.MustLoadFile(*filePath, properties.UTF8)
 	prop.MustFlag(flag.CommandLine)
-}
-
-func LoadServerOptions() (opt *ServerOptions, err error) {
-	serverOptionsInstance = &ServerOptions{}
-	err = prop.Decode(serverOptionsInstance)
+	LoggingOptionsInstance = &LoggingOptions{}
+	err := prop.Decode(LoggingOptionsInstance)
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
-	return serverOptionsInstance, nil
-}
-func LoadDiscoveryOptions() (opt *RegistryOptions, err error) {
-	var discoveryOptionsInstance = &RegistryOptions{}
-	err = prop.Decode(discoveryOptionsInstance)
+	ServerOptionsInstance = &ServerOptions{}
+	err = prop.Decode(ServerOptionsInstance)
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
-
-	return discoveryOptionsInstance, nil
-}
-
-func LoadLoggingOptions() (opt *LoggingOptions, err error) {
-	var loggingOptionsInstance = &LoggingOptions{}
-	err = prop.Decode(loggingOptionsInstance)
+	RegistryOptionsInstance = &RegistryOptions{}
+	err = prop.Decode(RegistryOptionsInstance)
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
-	return loggingOptionsInstance, nil
 }

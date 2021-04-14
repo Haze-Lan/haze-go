@@ -14,5 +14,6 @@ func (s *Server) handleSignals() {
 		<-c
 		log.Info("Process exit instruction received")
 		s.Shutdown()
+		os.Exit(1)
 	}()
 }

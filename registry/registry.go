@@ -8,11 +8,12 @@ import (
 	"github.com/Haze-Lan/haze-go/option"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc/grpclog"
+	"google.golang.org/grpc/resolver"
 	"sync"
 	"time"
 )
 
-var options *option.RegistryOptions
+
 var log = grpclog.Component("registry")
 
 type Registry interface {
@@ -28,17 +29,12 @@ type etcdv3Registry struct {
 	opt    *option.RegistryOptions
 }
 
-func init() {
-	var err error
-	options, err = option.LoadDiscoveryOptions()
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-}
+
 
 func NewRegistry() *etcdv3Registry {
+	resolver.Register(&Etcdv3ResolverBuilder{})
 	config := clientv3.Config{
-		Endpoints:   options.ServerHost,
+		Endpoints:   option.RegistryOptionsInstance.ServerHost,
 		DialTimeout: 10 * time.Second,
 		Context:     context.TODO(),
 	}
@@ -50,7 +46,7 @@ func NewRegistry() *etcdv3Registry {
 		client: client,
 		kvs:    sync.Map{},
 		rmu:    &sync.RWMutex{},
-		opt:    options,
+		opt:    option.RegistryOptionsInstance,
 	}
 	log.Info("discovery initialization completed")
 	event.GlobalEventBus.Subscribe(event.EVENT_TOPIC_SERVER_QUIT, func(data interface{}) {
@@ -61,7 +57,10 @@ func NewRegistry() *etcdv3Registry {
 
 func (r *etcdv3Registry) Stop() {
 	log.Infof("close the %s component", "registry")
-	r.client.Close()
+	 err:=r.client.Close()
+	if err!=nil {
+		log.Error(err)
+	}
 }
 
 func (r *etcdv3Registry) RegisterService(ctx context.Context, info *Instance) error {

@@ -2,7 +2,7 @@ package utils
 
 import "strings"
 
-//判断为空则使用默认值
+// ValueOfString 判断为空则使用默认值
 func ValueOfString(data interface{}, defaultValue string) string {
 	if data == nil {
 		return defaultValue

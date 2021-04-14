@@ -11,7 +11,7 @@ import (
 // Signal Handling
 func (s *Server) handleSignals() {
 	c := make(chan os.Signal)
-	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1, syscall.SIGUSR2, syscall.SIGHUP)
+	signal.Notify(c, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1, syscall.SIGUSR2, syscall.SIGHUP)
 	go func() {
 		<-c
 		log.Info("Process exit instruction received")

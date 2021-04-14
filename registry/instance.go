@@ -1,7 +1,9 @@
 package registry
 
 import (
+	"fmt"
 	"github.com/Haze-Lan/haze-go/option"
+	"github.com/Haze-Lan/haze-go/utils"
 	"time"
 )
 
@@ -18,18 +20,18 @@ type Instance struct {
 	Methods   []string          `json:"methods" `
 }
 
-func NewInstance(opts ...option.RegistryOptionsFun) *Instance {
-	for _, opt := range opts {
-		opt.Apply(options)
-	}
+func NewInstance(addr string) *Instance {
+	var id = utils.Hash(fmt.Sprintf("%s-%s-%s-%s-%s", option.RegistryOptionsInstance.ServerRegion, option.RegistryOptionsInstance.ServerZone, option.RegistryOptionsInstance.ServerNameSpace, option.RegistryOptionsInstance.InstanceName, addr))
 	si := &Instance{
-		Name:     options.InstanceName,
-		Id:       options.InstanceId,
-		Weight:   options.InstanceWeight,
-		Enable:   true,
-		Metadata: make(map[string]string),
-		Region:   options.InstanceRegion,
-		Zone:     options.InstanceZone,
+		Name:      option.RegistryOptionsInstance.InstanceName,
+		Id:        id,
+		Weight:    option.RegistryOptionsInstance.InstanceWeight,
+		Address:   addr,
+		Enable:    true,
+		Metadata:  make(map[string]string),
+		Region:    option.RegistryOptionsInstance.ServerRegion,
+		Zone:      option.RegistryOptionsInstance.ServerZone,
+		Namespace: option.RegistryOptionsInstance.ServerNameSpace,
 	}
 	si.Metadata["time"] = time.Now().String()
 	si.Metadata["version"] = "1.0"
