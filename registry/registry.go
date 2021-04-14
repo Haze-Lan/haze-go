@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Haze-Lan/haze-go/event"
 	"github.com/Haze-Lan/haze-go/option"
+	"go.etcd.io/etcd/api/v3/mvccpb"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/resolver"
@@ -15,7 +16,7 @@ import (
 
 
 var log = grpclog.Component("registry")
-
+var  timeOut = time.Duration(3) * time.Second
 type Registry interface {
 	RegisterService(context.Context, *Instance) error
 	UnregisterService(context.Context, *Instance) error
@@ -82,8 +83,51 @@ func (r *etcdv3Registry) UnregisterService(ctx context.Context, info *Instance) 
 }
 
 func (r *etcdv3Registry) ListServices(ctx context.Context, name string, scheme string) (services []*Instance, err error) {
+	//var key = fmt.Sprintf("%s/%s/%s/%s/%s", option.RegistryOptionsInstance.ServerRegion, option.RegistryOptionsInstance.ServerZone, option.RegistryOptionsInstance.ServerNameSpace, option.RegistryOptionsInstance.InstanceName)
 	return nil, nil
 }
+func (r *etcdv3Registry) WatchServices(ctx context.Context, name string) ( err error) {
+	var key = fmt.Sprintf("%s/%s/%s/%s/%s", option.RegistryOptionsInstance.ServerRegion, option.RegistryOptionsInstance.ServerZone, option.RegistryOptionsInstance.ServerNameSpace, option.RegistryOptionsInstance.InstanceName)
+	cacelctx, cancel := context.WithTimeout(ctx, timeOut)
+	defer cancel()
+	resp, err := r.client.Get(cacelctx, key, clientv3.WithPrefix())
+	if err != nil {
+		return  err
+	}
+
+	for _, ev := range resp.Kvs {
+		//listener.Set(ev.Key, ev.Value)
+	}
+	var watchChan =r.client.Watch(context.Background(), key, clientv3.WithPrefix(), clientv3.WithRev(resp.Header.Revision+1))
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case resp_ := <-watchChan:
+			err := resp_.Err()
+			if err != nil {
+				return err
+			}
+			for _, ev := range resp.Events {
+				if ev.IsCreate() {
+
+					listener.Create(ev.Kv.Key, ev.Kv.Value)
+				} else if ev.IsModify() {
+
+					listener.Modify(ev.Kv.Key, ev.Kv.Value)
+				} else if ev.Type == mvccpb.DELETE {
+
+					listener.Delete(ev.Kv.Key)
+				}
+			}
+		}
+	}
+
+
+
+	return nil, nil
+}
+
 func (r *etcdv3Registry) unregister(ctx context.Context, key string) error {
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel context.CancelFunc
@@ -98,7 +142,7 @@ func (r *etcdv3Registry) unregister(ctx context.Context, key string) error {
 }
 
 func (r *etcdv3Registry) registerKey(ins *Instance) string {
-	return fmt.Sprintf("/%s/%s/%s/%s", ins.Region, ins.Zone, ins.Namespace, ins.Name)
+	return fmt.Sprintf("/%s/%s/%s/%s/%s", ins.Name, ins.Region, ins.Zone, ins.Namespace,ins.Address)
 }
 
 func (r *etcdv3Registry) registerValue(ins *Instance) string {

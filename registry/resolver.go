@@ -15,7 +15,7 @@ func (*Etcdv3ResolverBuilder) Build(target resolver.Target, cc resolver.ClientCo
 	r := &etcdv3Resolver{
 		target: target,
 		cc:     cc,
-		addrsStore: map[string][]string{		},
+		addrsStore: map[string][]string{"account-haze":[]string{"127.0.0.1:80"}},
 	}
 	r.start()
 	return r, nil
@@ -40,4 +40,5 @@ func (*etcdv3Resolver) ResolveNow(o resolver.ResolveNowOptions) {
 	log.Info(o)
 }
 func (*etcdv3Resolver) Close()                                  {}
+
 
