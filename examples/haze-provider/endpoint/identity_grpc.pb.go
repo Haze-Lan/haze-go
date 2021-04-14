@@ -4,7 +4,7 @@ package endpoint
 
 import (
 	context "context"
-	"github.com/Haze-Lan/haze-go/haze-provider/model"
+	model2 "github.com/Haze-Lan/haze-go/examples/haze-provider/model"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -20,7 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AccountClient interface {
 	// Sends a greeting
-	Authentication(ctx context.Context, in *model.LoginRequest, opts ...grpc.CallOption) (*model.LoginResponse, error)
+	Authentication(ctx context.Context, in *model2.LoginRequest, opts ...grpc.CallOption) (*model2.LoginResponse, error)
 }
 
 type accountClient struct {
@@ -31,8 +31,8 @@ func NewAccountClient(cc grpc.ClientConnInterface) AccountClient {
 	return &accountClient{cc}
 }
 
-func (c *accountClient) Authentication(ctx context.Context, in *model.LoginRequest, opts ...grpc.CallOption) (*model.LoginResponse, error) {
-	out := new(model.LoginResponse)
+func (c *accountClient) Authentication(ctx context.Context, in *model2.LoginRequest, opts ...grpc.CallOption) (*model2.LoginResponse, error) {
+	out := new(model2.LoginResponse)
 	err := c.cc.Invoke(ctx, "/api.Account/Authentication", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ func (c *accountClient) Authentication(ctx context.Context, in *model.LoginReque
 // for forward compatibility
 type AccountServer interface {
 	// Sends a greeting
-	Authentication(context.Context, *model.LoginRequest) (*model.LoginResponse, error)
+	Authentication(context.Context, *model2.LoginRequest) (*model2.LoginResponse, error)
 	mustEmbedUnimplementedAccountServer()
 }
 
@@ -53,7 +53,7 @@ type AccountServer interface {
 type UnimplementedAccountServer struct {
 }
 
-func (UnimplementedAccountServer) Authentication(context.Context, *model.LoginRequest) (*model.LoginResponse, error) {
+func (UnimplementedAccountServer) Authentication(context.Context, *model2.LoginRequest) (*model2.LoginResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Authentication not implemented")
 }
 func (UnimplementedAccountServer) mustEmbedUnimplementedAccountServer() {}
@@ -70,7 +70,7 @@ func RegisterAccountServer(s grpc.ServiceRegistrar, srv AccountServer) {
 }
 
 func _Account_Authentication_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(model.LoginRequest)
+	in := new(model2.LoginRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func _Account_Authentication_Handler(srv interface{}, ctx context.Context, dec f
 		FullMethod: "/api.Account/Authentication",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AccountServer).Authentication(ctx, req.(*model.LoginRequest))
+		return srv.(AccountServer).Authentication(ctx, req.(*model2.LoginRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

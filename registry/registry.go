@@ -98,7 +98,7 @@ func (r *etcdv3Registry) unregister(ctx context.Context, key string) error {
 }
 
 func (r *etcdv3Registry) registerKey(ins *Instance) string {
-	return fmt.Sprintf("/%s/%s/%s/%s://%s", ins.Region, ins.Zone, ins.Namespace, ins.Name, ins.Address)
+	return fmt.Sprintf("/%s/%s/%s/%s", ins.Region, ins.Zone, ins.Namespace, ins.Name)
 }
 
 func (r *etcdv3Registry) registerValue(ins *Instance) string {

@@ -1,4 +1,4 @@
-package haze_provider
+package main
 
 import "github.com/Haze-Lan/haze-go/server"
 
