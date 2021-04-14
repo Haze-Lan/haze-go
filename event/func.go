@@ -10,7 +10,7 @@ func (eb *EventBus) Subscribe(topic string, handler Handler) {
 	go func(dc DataChannel) {
 		de := <-dc
 		log.Infof("receive the event %s ,data: %s", topic, de)
-		handler(de)
+		handler(de.Data)
 	}(ch)
 	if prev, found := eb.subscribers[topic]; found {
 		eb.subscribers[topic] = append(prev, ch)

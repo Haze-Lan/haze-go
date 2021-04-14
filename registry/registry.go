@@ -14,13 +14,14 @@ import (
 	"time"
 )
 
-
 var log = grpclog.Component("registry")
-var  timeOut = time.Duration(3) * time.Second
+var timeOut = time.Duration(3) * time.Second
+
 type Registry interface {
 	RegisterService(context.Context, *Instance) error
 	UnregisterService(context.Context, *Instance) error
 	ListServices(context.Context, string, string) ([]*Instance, error)
+	WatchServices(ctx context.Context, name string) (err error)
 }
 type etcdv3Registry struct {
 	client *clientv3.Client
@@ -29,8 +30,6 @@ type etcdv3Registry struct {
 	rmu    *sync.RWMutex
 	opt    *option.RegistryOptions
 }
-
-
 
 func NewRegistry() *etcdv3Registry {
 	resolver.Register(&Etcdv3ResolverBuilder{})
@@ -58,8 +57,8 @@ func NewRegistry() *etcdv3Registry {
 
 func (r *etcdv3Registry) Stop() {
 	log.Infof("close the %s component", "registry")
-	 err:=r.client.Close()
-	if err!=nil {
+	err := r.client.Close()
+	if err != nil {
 		log.Error(err)
 	}
 }
@@ -86,46 +85,50 @@ func (r *etcdv3Registry) ListServices(ctx context.Context, name string, scheme s
 	//var key = fmt.Sprintf("%s/%s/%s/%s/%s", option.RegistryOptionsInstance.ServerRegion, option.RegistryOptionsInstance.ServerZone, option.RegistryOptionsInstance.ServerNameSpace, option.RegistryOptionsInstance.InstanceName)
 	return nil, nil
 }
-func (r *etcdv3Registry) WatchServices(ctx context.Context, name string) ( err error) {
-	var key = fmt.Sprintf("%s/%s/%s/%s/%s", option.RegistryOptionsInstance.ServerRegion, option.RegistryOptionsInstance.ServerZone, option.RegistryOptionsInstance.ServerNameSpace, option.RegistryOptionsInstance.InstanceName)
+func (r *etcdv3Registry) WatchServices(ctx context.Context, name string) (err error) {
 	cacelctx, cancel := context.WithTimeout(ctx, timeOut)
 	defer cancel()
-	resp, err := r.client.Get(cacelctx, key, clientv3.WithPrefix())
+	resp, err := r.client.Get(cacelctx, name, clientv3.WithPrefix())
 	if err != nil {
-		return  err
+		return err
 	}
-
 	for _, ev := range resp.Kvs {
-		//listener.Set(ev.Key, ev.Value)
+		event.GlobalEventBus.Publish(event.EVENT_TOPIC_SERVICE_CHANGE, InstanceEvent{
+			eventType: InstanceEventAsAdd,
+			kv:        ev,
+		})
 	}
-	var watchChan =r.client.Watch(context.Background(), key, clientv3.WithPrefix(), clientv3.WithRev(resp.Header.Revision+1))
+	var watchChan = r.client.Watch(context.Background(), name, clientv3.WithPrefix(), clientv3.WithRev(resp.Header.Revision+1))
 	for {
 		select {
-		case <-ctx.Done():
+		case <-cacelctx.Done():
 			return nil
 		case resp_ := <-watchChan:
-			err := resp_.Err()
+			err = resp_.Err()
 			if err != nil {
 				return err
 			}
-			for _, ev := range resp.Events {
+			for _, ev := range resp_.Events {
 				if ev.IsCreate() {
-
-					listener.Create(ev.Kv.Key, ev.Kv.Value)
+					event.GlobalEventBus.Publish(event.EVENT_TOPIC_SERVICE_CHANGE, InstanceEvent{
+						eventType: InstanceEventAsAdd,
+						kv:        ev.Kv,
+					})
 				} else if ev.IsModify() {
-
-					listener.Modify(ev.Kv.Key, ev.Kv.Value)
+					event.GlobalEventBus.Publish(event.EVENT_TOPIC_SERVICE_CHANGE, InstanceEvent{
+						eventType: InstanceEventAsUpdate,
+						kv:        ev.Kv,
+					})
 				} else if ev.Type == mvccpb.DELETE {
-
-					listener.Delete(ev.Kv.Key)
+					event.GlobalEventBus.Publish(event.EVENT_TOPIC_SERVICE_CHANGE, InstanceEvent{
+						eventType: InstanceEventAsDelete,
+						kv:        ev.Kv,
+					})
 				}
 			}
 		}
 	}
-
-
-
-	return nil, nil
+	return nil
 }
 
 func (r *etcdv3Registry) unregister(ctx context.Context, key string) error {
@@ -142,7 +145,7 @@ func (r *etcdv3Registry) unregister(ctx context.Context, key string) error {
 }
 
 func (r *etcdv3Registry) registerKey(ins *Instance) string {
-	return fmt.Sprintf("/%s/%s/%s/%s/%s", ins.Name, ins.Region, ins.Zone, ins.Namespace,ins.Address)
+	return fmt.Sprintf("%s/%s/%s/%s/%s", ins.Name, ins.Region, ins.Zone, ins.Namespace, ins.Address)
 }
 
 func (r *etcdv3Registry) registerValue(ins *Instance) string {

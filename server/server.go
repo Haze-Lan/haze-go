@@ -22,8 +22,7 @@ type Server struct {
 	registry registry.Registry
 	rpc      *grpc.Server
 	opt      *option.ServerOptions
-	quit   chan int
-
+	quit     chan int
 }
 
 func NewServer() *Server {
@@ -46,6 +45,7 @@ func (s *Server) Start() error {
 	defer s.Shutdown()
 	//启动grpc
 	go startGrpc(s)
+	go s.handleSignals()
 	//注册服务
 	go registerThisService(s)
 	log.Infof("应用[%s]启动在本机[%d]端口完成", s.opt.Name, s.opt.Port)
@@ -62,7 +62,7 @@ func (s *Server) Shutdown() {
 
 //启动rpc服务
 func startGrpc(s *Server) {
-	defer func() { s.quit<-1 }()
+	defer func() { s.quit <- 1 }()
 	lis, err := net.Listen("tcp", ":"+strconv.FormatUint(s.opt.Port, 10))
 	if err != nil {
 		log.Fatal(err.Error())
@@ -72,6 +72,15 @@ func startGrpc(s *Server) {
 		log.Fatal("The GRPC component failed to start ")
 	}
 	log.Info("The GRPC component is closed")
+}
+
+func (s *Server) GetService(serviceName string) *grpc.ClientConn {
+	go s.registry.WatchServices(context.TODO(), serviceName)
+	conn, err := grpc.Dial(fmt.Sprintf("%s:///%s", "etcd", serviceName), grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+	return conn
 }
 
 //注册本实例

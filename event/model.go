@@ -19,5 +19,8 @@ type EventBus struct {
 	rm          sync.RWMutex
 }
 
-// 服务退出事件
+// EVENT_TOPIC_SERVER_QUIT 服务退出事件
 const EVENT_TOPIC_SERVER_QUIT = "SERVER_QUIT"
+
+// EVENT_TOPIC_SERVICE_CHANGE 服务实例变化事件
+const EVENT_TOPIC_SERVICE_CHANGE = "SERVICE_CHANGE"

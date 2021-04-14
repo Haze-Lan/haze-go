@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/Haze-Lan/haze-go/option"
 	"github.com/Haze-Lan/haze-go/utils"
+	"go.etcd.io/etcd/api/v3/mvccpb"
 	"time"
 )
 
@@ -36,4 +37,15 @@ func NewInstance(addr string) *Instance {
 	si.Metadata["time"] = time.Now().String()
 	si.Metadata["version"] = "1.0"
 	return si
+}
+
+type InstanceEventType int
+
+const InstanceEventAsAdd = InstanceEventType(1)
+const InstanceEventAsDelete = InstanceEventType(2)
+const InstanceEventAsUpdate = InstanceEventType(3)
+
+type InstanceEvent struct {
+	eventType InstanceEventType
+	kv        *mvccpb.KeyValue
 }
