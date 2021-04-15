@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"net"
 	"strconv"
+	"sync"
 )
 
 var log = grpclog.Component("application")
@@ -22,6 +23,8 @@ type Server struct {
 	registry registry.Registry
 	rpc      *grpc.Server
 	opt      *option.ServerOptions
+	status    int
+	lock  		sync.RWMutex
 	quit     chan int
 }
 
@@ -41,6 +44,9 @@ func NewServer() *Server {
 	return server
 }
 
+
+
+
 func (s *Server) Start() error {
 	defer s.Shutdown()
 	//启动grpc
@@ -51,6 +57,10 @@ func (s *Server) Start() error {
 	log.Infof("应用[%s]启动在本机[%d]端口完成", s.opt.Name, s.opt.Port)
 	<-s.quit
 	return nil
+}
+
+func (s *Server)RegisterService(sd grpc.ServiceDesc,ins interface{})  {
+	s.rpc.RegisterService(&sd,ins)
 }
 
 func (s *Server) Shutdown() {
