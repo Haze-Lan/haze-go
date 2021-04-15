@@ -19,23 +19,23 @@ var timeOut = time.Duration(3) * time.Second
 
 type Registry interface {
 	RegisterService(context.Context, *Instance) error
-	UnregisterService(context.Context, *Instance) error
-	ListServices(context.Context, string, string) ([]*Instance, error)
+	UnregisterService(context.Context, string) error
+	ListServices(context.Context, string) ([]*Instance, error)
 	WatchServices(ctx context.Context, name string) (err error)
 }
+
 type etcdv3Registry struct {
-	client *clientv3.Client
-	kvs    sync.Map
-	cancel context.CancelFunc
-	rmu    *sync.RWMutex
-	opt    *option.RegistryOptions
+	client            *clientv3.Client
+	rmu               *sync.RWMutex
+	opt               *option.RegistryOptions
+	currentServiceKey string
 }
 
 func NewRegistry() *etcdv3Registry {
 	resolver.Register(&Etcdv3ResolverBuilder{})
 	config := clientv3.Config{
 		Endpoints:   option.RegistryOptionsInstance.ServerHost,
-		DialTimeout: 10 * time.Second,
+		DialTimeout: timeOut,
 		Context:     context.TODO(),
 	}
 	client, err := clientv3.New(config)
@@ -44,7 +44,6 @@ func NewRegistry() *etcdv3Registry {
 	}
 	r := &etcdv3Registry{
 		client: client,
-		kvs:    sync.Map{},
 		rmu:    &sync.RWMutex{},
 		opt:    option.RegistryOptionsInstance,
 	}
@@ -57,6 +56,7 @@ func NewRegistry() *etcdv3Registry {
 
 func (r *etcdv3Registry) Stop() {
 	log.Infof("close the %s component", "registry")
+	r.UnregisterService(context.Background(), r.currentServiceKey)
 	err := r.client.Close()
 	if err != nil {
 		log.Error(err)
@@ -64,26 +64,50 @@ func (r *etcdv3Registry) Stop() {
 }
 
 func (r *etcdv3Registry) RegisterService(ctx context.Context, info *Instance) error {
-	key := r.registerKey(info)
-	val := r.registerValue(info)
+	key := registerKey(info)
+	r.currentServiceKey = key
+	val := registerValue(info)
 	opOptions := make([]clientv3.OpOption, 0)
 	_, err := r.client.Put(ctx, key, val, opOptions...)
 	if err != nil {
-		log.Errorf("register service %s", err.Error())
+		log.Errorf("register service  fail,%s", err.Error())
 		return err
 	}
-	log.Infof("register service %s %s", key, val)
-	r.kvs.Store(key, val)
+	log.Infof("register service %s", info.Name)
 	return nil
 }
 
-func (r *etcdv3Registry) UnregisterService(ctx context.Context, info *Instance) error {
-	return r.unregister(ctx, r.registerKey(info))
+func (r *etcdv3Registry) UnregisterService(ctx context.Context, key string) error {
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeOut)
+		defer cancel()
+	}
+	_, err := r.client.Delete(ctx, key)
+	if err == nil {
+		log.Infof("Unloading service %s", key)
+		return nil
+	}
+	return err
 }
 
-func (r *etcdv3Registry) ListServices(ctx context.Context, name string, scheme string) (services []*Instance, err error) {
-	//var key = fmt.Sprintf("%s/%s/%s/%s/%s", option.RegistryOptionsInstance.ServerRegion, option.RegistryOptionsInstance.ServerZone, option.RegistryOptionsInstance.ServerNameSpace, option.RegistryOptionsInstance.InstanceName)
-	return nil, nil
+func (r *etcdv3Registry) ListServices(ctx context.Context, name string) (services []*Instance, err error) {
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeOut)
+		defer cancel()
+	}
+	resp, err := r.client.Get(ctx, name, clientv3.WithPrefix())
+	if err != nil {
+		return nil, err
+	}
+	var ss = make([]*Instance, 0)
+	for _, ev := range resp.Kvs {
+		ins := &Instance{}
+		json.Unmarshal(ev.Value, ins)
+		ss = append(ss, ins)
+	}
+	return ss, nil
 }
 func (r *etcdv3Registry) WatchServices(ctx context.Context, name string) (err error) {
 	cacelctx, cancel := context.WithTimeout(ctx, timeOut)
@@ -131,24 +155,11 @@ func (r *etcdv3Registry) WatchServices(ctx context.Context, name string) (err er
 	return nil
 }
 
-func (r *etcdv3Registry) unregister(ctx context.Context, key string) error {
-	if _, ok := ctx.Deadline(); !ok {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, 10)
-		defer cancel()
-	}
-	_, err := r.client.Delete(ctx, key)
-	if err == nil {
-		r.kvs.Delete(key)
-	}
-	return err
-}
-
-func (r *etcdv3Registry) registerKey(ins *Instance) string {
+func registerKey(ins *Instance) string {
 	return fmt.Sprintf("%s/%s/%s/%s/%s", ins.Name, ins.Region, ins.Zone, ins.Namespace, ins.Address)
 }
 
-func (r *etcdv3Registry) registerValue(ins *Instance) string {
+func registerValue(ins *Instance) string {
 	val, _ := json.Marshal(ins)
 	return string(val)
 }

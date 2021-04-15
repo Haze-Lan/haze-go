@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/go-errors/errors v1.0.1
 	github.com/magiconair/properties v1.8.5
+	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/stretchr/testify v1.7.0
 	go.etcd.io/etcd/api/v3 v3.5.0-alpha.0
 	go.etcd.io/etcd/client/v3 v3.5.0-alpha.0

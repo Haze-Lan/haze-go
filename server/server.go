@@ -10,6 +10,8 @@ import (
 	"google.golang.org/grpc"
 	gservice "google.golang.org/grpc/channelz/service"
 	"google.golang.org/grpc/grpclog"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"net"
 	"strconv"
@@ -23,8 +25,8 @@ type Server struct {
 	registry registry.Registry
 	rpc      *grpc.Server
 	opt      *option.ServerOptions
-	status    int
-	lock  		sync.RWMutex
+	status   int
+	lock     sync.RWMutex
 	quit     chan int
 }
 
@@ -44,14 +46,12 @@ func NewServer() *Server {
 	return server
 }
 
-
-
-
 func (s *Server) Start() error {
 	defer s.Shutdown()
 	//启动grpc
 	go startGrpc(s)
 	go s.handleSignals()
+	go healthLis(s)
 	//注册服务
 	go registerThisService(s)
 	log.Infof("应用[%s]启动在本机[%d]端口完成", s.opt.Name, s.opt.Port)
@@ -59,8 +59,9 @@ func (s *Server) Start() error {
 	return nil
 }
 
-func (s *Server)RegisterService(sd grpc.ServiceDesc,ins interface{})  {
-	s.rpc.RegisterService(&sd,ins)
+func (s *Server) RegisterService(sd grpc.ServiceDesc, ins interface{}) {
+	s.rpc.RegisterService(&sd, ins)
+
 }
 
 func (s *Server) Shutdown() {
@@ -97,4 +98,11 @@ func (s *Server) GetService(serviceName string) *grpc.ClientConn {
 func registerThisService(s *Server) {
 	var ins = registry.NewInstance(fmt.Sprintf("%s:%d", s.opt.Host, s.opt.Port))
 	s.registry.RegisterService(context.TODO(), ins)
+}
+
+func healthLis(s *Server) {
+
+	hsrv := health.NewServer()
+	hsrv.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
+	healthpb.RegisterHealthServer(s.rpc, hsrv)
 }

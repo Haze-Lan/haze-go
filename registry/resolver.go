@@ -73,7 +73,6 @@ func (r *etcdv3Resolver) start() {
 			r.cc.UpdateState(resolver.State{Addresses: addrs})
 		}
 	})
-
 }
 func (*etcdv3Resolver) ResolveNow(o resolver.ResolveNowOptions) {
 	log.Info("Analytical services")
