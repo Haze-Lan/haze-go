@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/Haze-Lan/haze-go/examples/haze-provider/endpoint"
-	"github.com/Haze-Lan/haze-go/examples/haze-provider/impl"
+	"github.com/Haze-Lan/haze-go/examples/simple/haze-common/endpoint"
+	"github.com/Haze-Lan/haze-go/examples/simple/haze-provider/impl"
 	"github.com/Haze-Lan/haze-go/server"
 	"log"
 )
