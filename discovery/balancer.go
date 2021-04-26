@@ -1,4 +1,4 @@
-package registry
+package discovery
 
 import (
 	"fmt"
@@ -109,5 +109,5 @@ func (p *picker) Pick(info balancer.PickInfo) (balancer.PickResult, error) {
 }
 
 func init() {
-	balancer.Register(newRandomBalancerBuilder())
+	//balancer.Register(newRandomBalancerBuilder())
 }

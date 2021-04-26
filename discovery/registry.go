@@ -1,4 +1,4 @@
-package registry
+package discovery
 
 import (
 	"context"
@@ -14,10 +14,10 @@ import (
 	"time"
 )
 
-var log = grpclog.Component("registry")
+var log = grpclog.Component("discovery")
 var timeOut = time.Duration(3) * time.Second
-
-type Registry interface {
+var ttl int64
+type Discovery interface {
 	RegisterService(context.Context, *Instance) error
 	UnregisterService(context.Context, string) error
 	ListServices(context.Context, string) ([]*Instance, error)
@@ -55,7 +55,7 @@ func NewRegistry() *etcdv3Registry {
 }
 
 func (r *etcdv3Registry) Stop() {
-	log.Infof("close the %s component", "registry")
+	log.Infof("close the %s component", "discovery")
 	r.UnregisterService(context.Background(), r.currentServiceKey)
 	err := r.client.Close()
 	if err != nil {
@@ -64,6 +64,7 @@ func (r *etcdv3Registry) Stop() {
 }
 
 func (r *etcdv3Registry) RegisterService(ctx context.Context, info *Instance) error {
+	//TODO 使用租约方式处理 服务下线问题
 	key := registerKey(info)
 	r.currentServiceKey = key
 	val := registerValue(info)

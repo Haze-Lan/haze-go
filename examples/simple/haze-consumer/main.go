@@ -13,11 +13,7 @@ func main() {
 	haze := server.NewServer()
 	clien := endpoint.NewAccountClient(haze.GetService("account-haze"))
 	fmt.Println(clien.Authentication(context.TODO(), &model.LoginRequest{Name: "22222", Pass: "22222222222222222"}))
-
 		if err := haze.Start(); err != nil {
 			log.Fatalf("failed to listen: %v", err)
 		}
-
-
-
 }

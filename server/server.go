@@ -3,15 +3,13 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/Haze-Lan/haze-go/discovery"
 	"github.com/Haze-Lan/haze-go/event"
 	"github.com/Haze-Lan/haze-go/logger"
 	"github.com/Haze-Lan/haze-go/option"
-	"github.com/Haze-Lan/haze-go/registry"
 	"google.golang.org/grpc"
 	gservice "google.golang.org/grpc/channelz/service"
 	"google.golang.org/grpc/grpclog"
-	"google.golang.org/grpc/health"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 	"net"
 	"strconv"
@@ -21,27 +19,25 @@ import (
 var log = grpclog.Component("application")
 
 type Server struct {
-	//注册中心
-	registry registry.Registry
-	rpc      *grpc.Server
-	opt      *option.ServerOptions
-	status   int
-	lock     sync.RWMutex
-	quit     chan int
+	discovery discovery.Discovery
+	rpc       *grpc.Server
+	opt       *option.ServerOptions
+	status    int
+	lock      sync.RWMutex
+	quit      chan int
 }
 
 func NewServer() *Server {
 	logger.NewLogger()
-
 	rpc := grpc.NewServer()
 	gservice.RegisterChannelzServiceToServer(rpc)
-	discovery := registry.NewRegistry()
+	discovery := discovery.NewRegistry()
 	reflection.Register(rpc)
 	server := &Server{
-		rpc:      rpc,
-		quit:     make(chan int),
-		opt:      option.ServerOptionsInstance,
-		registry: discovery,
+		rpc:       rpc,
+		quit:      make(chan int),
+		opt:       option.ServerOptionsInstance,
+		discovery: discovery,
 	}
 	return server
 }
@@ -86,7 +82,7 @@ func startGrpc(s *Server) {
 }
 
 func (s *Server) GetService(serviceName string) *grpc.ClientConn {
-	go s.registry.WatchServices(context.TODO(), serviceName)
+	go s.discovery.WatchServices(context.TODO(), serviceName)
 	conn, err := grpc.Dial(fmt.Sprintf("%s:///%s", "etcd", serviceName), grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
@@ -96,13 +92,12 @@ func (s *Server) GetService(serviceName string) *grpc.ClientConn {
 
 //注册本实例
 func registerThisService(s *Server) {
-	var ins = registry.NewInstance(fmt.Sprintf("%s:%d", s.opt.Host, s.opt.Port))
-	s.registry.RegisterService(context.TODO(), ins)
+	var ins = discovery.NewInstance(fmt.Sprintf("%s:%d", s.opt.Host, s.opt.Port))
+	s.discovery.RegisterService(context.TODO(), ins)
 }
 
 func healthLis(s *Server) {
-
-	hsrv := health.NewServer()
+	/*hsrv := health.NewServer()
 	hsrv.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
-	healthpb.RegisterHealthServer(s.rpc, hsrv)
+	healthpb.RegisterHealthServer(s.rpc, hsrv)*/
 }

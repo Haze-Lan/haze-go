@@ -2,14 +2,14 @@ package option
 
 // RegistryOptions 注册中心配置
 type RegistryOptions struct {
-	ServerHost           []string          `properties:"registry.server.host,default=127.0.0.1:2379"`
-	ServerNameSpace      string            `properties:"registry.server.namespace,default=haodoings.com"`
-	ServerRegion         string            `properties:"registry.server.region,default=default"`
-	ServerZone           string            `properties:"registry.server.zone,default=default"`
-	InstanceIntervalTime uint64            `properties:"registry.server.instance.interval.time,default=1"`
-	InstanceName         string            `properties:"registry.server.instance.name,default=haze"`
-	InstanceWeight       float64           `properties:"registry.server.instance.weight,default=10"`
-	InstanceMetadata     map[string]string `properties:"registry.server.instance.metadata,default="`
+	ServerHost           []string          `properties:"discovery.server.host,default=127.0.0.1:2379"`
+	ServerNameSpace      string            `properties:"discovery.server.namespace,default=haodoings.com"`
+	ServerRegion         string            `properties:"discovery.server.region,default=default"`
+	ServerZone           string            `properties:"discovery.server.zone,default=default"`
+	InstanceIntervalTime uint64            `properties:"discovery.server.instance.interval.time,default=1"`
+	InstanceName         string            `properties:"discovery.server.instance.name,default=haze"`
+	InstanceWeight       float64           `properties:"discovery.server.instance.weight,default=10"`
+	InstanceMetadata     map[string]string `properties:"discovery.server.instance.metadata,default="`
 }
 
 type RegistryOptionsFun interface {

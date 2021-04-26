@@ -1,4 +1,4 @@
-package registry
+package discovery
 
 import (
 	"encoding/json"
@@ -7,6 +7,7 @@ import (
 )
 
 type Etcdv3ResolverBuilder struct {
+
 }
 
 func (*Etcdv3ResolverBuilder) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) {
