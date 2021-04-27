@@ -27,6 +27,7 @@ type Server struct {
 	quit      chan int
 }
 
+
 func NewServer() *Server {
 	logger.NewLogger()
 	rpc := grpc.NewServer()
@@ -66,6 +67,8 @@ func (s *Server) Shutdown() {
 	s.rpc.Stop()
 	event.GlobalEventBus.Publish(event.EVENT_TOPIC_SERVER_QUIT, nil)
 }
+
+
 
 //启动rpc服务
 func startGrpc(s *Server) {

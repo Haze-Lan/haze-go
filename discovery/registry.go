@@ -17,6 +17,8 @@ import (
 var log = grpclog.Component("discovery")
 var timeOut = time.Duration(3) * time.Second
 var ttl int64
+var dataSource *clientv3.Client
+
 type Discovery interface {
 	RegisterService(context.Context, *Instance) error
 	UnregisterService(context.Context, string) error
@@ -51,7 +53,11 @@ func NewRegistry() *etcdv3Registry {
 	event.GlobalEventBus.Subscribe(event.EVENT_TOPIC_SERVER_QUIT, func(data interface{}) {
 		r.Stop()
 	})
+	dataSource = client
 	return r
+}
+func DataSource() *clientv3.Client {
+	return dataSource
 }
 
 func (r *etcdv3Registry) Stop() {
